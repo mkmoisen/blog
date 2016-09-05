@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+    <header>
+        <h1>Edit Comment</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul id="messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form action="/admin/comment/{{comment_id}}/" method="POST">
+            <input type="hidden" name="comment_id" value="{{comment_id}}">
+            <h2>Name</h2>
+            <input type="text" name="comment_name" value="{{name}}">
+            <h2>Email</h2>
+            <input type="text" name="comment_email" value="{{email}}">
+            <h2>Content</h2>
+            <textarea name="comment_content">{{content}}</textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+    </header>
+{% endblock %}

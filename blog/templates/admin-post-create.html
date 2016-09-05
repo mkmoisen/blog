@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block css %}
+    #post-content {
+        width: 650px;
+        height: 600px;
+    }
+    #post-title {
+        width: 650px;
+    }
+{% endblock %}
+{% block content %}
+    <header>
+        <h1>Create new Post</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul id="messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form action="/admin/post/" method="POST">
+            <input type="hidden" name="post_id" value="{{post_id}}">
+            <h2>Category</h2>
+            <select name="category_id">
+                <option value="">Uncategorized</option>
+                {% for category in categories %}
+                <option value="{{category.id}}" {{ 'selected' if category_id == category.id else '' }}>{{category.name}}</option>
+                {% endfor %}
+            </select>
+            <h2>Title</h2>
+            <input type="text" id="post-title" name="post_title" value="{{title}}">
+            <h2>Content</h2>
+            <textarea id="post-content" name="post_content">{{content}}</textarea>
+            <button type="submit">Submit</button>
+        </form>
+
+    </header>
+{% endblock %}

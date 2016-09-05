@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block css %}
+        #vertical-navigation {
+            margin: 0;
+            padding: 0;
+            list-style-type: none;
+            overflow: hidden;
+            background-color: #EEEEEE;
+            width:650px;
+         }
+         #vertical-navigation li {
+
+         }
+         #vertical-navigation li a {
+            display: block;
+            width: 650px;
+            color: black;
+            text-align: left;
+            padding: 14px 16px;
+            text-decoration: none;
+         }
+{% endblock %}
+{% block content %}
+    <header>
+        <h1>Admin's Portal</h1>
+        <ul id="vertical-navigation">
+            <li><a href="/admin/post/">Create new Post</a></li>
+            <li><a href="/admin/category/">Create new Category</a></li>
+            <li><a href="/admin/post/">View all Posts</a></li>
+            <li><a href="/admin/category/">View all Categories</a></li>
+            <li><a href="/admin/comment/queue/">View all Comments</a></li>
+        </ul>
+
+    </header>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block css %}
+    table, td, th {
+        text-align: left;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th {
+        padding: 15px;
+    }
+    th, td {
+        border-bottom: 1px solid #ddd;
+
+    }
+
+    tr:hover {
+        background-color: #ddd;
+    }
+
+    #post-table a {
+        display: block;
+        color: black;
+        text-decoration: none;
+        padding: 15px;
+     }
+
+{% endblock %}
+{% block content %}
+    <header> <h1>{{category_name}}</h1></header>
+    <table id="post-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for post in posts %}
+            <tr>
+                <td><a href="/post/{{post.post_id}}/">{{post.title}}</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+
+{% endblock %}

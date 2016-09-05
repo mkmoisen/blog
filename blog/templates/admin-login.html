@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block css %}
+
+{% endblock %}
+{% block content %}
+    <header>
+        <h1>Admin Login</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form action="/admin/login/" method="POST">
+        <p>Email</p>
+        <input name="email" value="{{email}}" type="text">
+
+        <p>Password</p>
+        <input name="password" value="" type="password" placeholder="">
+
+        <p>Are you a human?
+        <input id="spam-check" name="spam_check" type="text"> {{spam_operator}} {{spam_word}} = {{spam_answer}} </p>
+        <button type="submit">Submit</button>
+    </form>
+
+{% endblock %}

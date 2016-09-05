@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+        body{
+            background-color: #EEEEEE;
+            margin:0px auto;
+            max-width:650px;
+            line-height:1.6;
+            font-size:18px;
+            color:#444;
+            padding:0 10px
+         }
+         h1,h2,h3{
+            line-height:1.2
+         }
+         #navigation {
+            margin: 0;
+            padding: 0;
+            list-style-type: none;
+            overflow: hidden;
+            background-color: #333;
+            top: 0;
+            width:650px;
+         }
+         #navigation li {
+            float: left;
+         }
+         #navigation li a {
+            display: block;
+            color: #EEEEEE;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+         }
+
+         /* For flask Flash messages */
+         #messages {
+            margin: 0;
+            padding: 0;
+            list-style-type: none;
+            overflow: hidden;
+            top: 0;
+            width:650px;
+         }
+         #messages li {
+            display: block;
+            text-align: left;
+            padding: 14px 16px;
+            border-radius: 20px;
+         }
+         #messages li.error {
+            background-color: #ffe6e6;
+            color: red;
+         }
+         #messages li.success {
+            background-color: #e6ffe6;
+            color: green;
+         }
+
+         /* For general inputs */
+         input, textarea, select {
+            width: 100%;
+            padding: 12px 20px;
+            margin: 8px 0;
+            font-size: 18px;
+        }
+        textarea {
+            height: 250px;
+
+        }
+
+        #spam-check {
+            width: 25px;
+        }
+
+        button {
+            padding: 15px 32px;
+            font-size: 18px;
+        }
+
+        img {
+            max-width: 100%;
+            heigh: auto;
+        }
+
+        pre {
+            padding-left: 50px;
+            background-color: #d9d9d9;
+        }
+
+         {% block css %}{% endblock %}
+
+    </style>
+    <title>Matthew Moisen</title>
+</head>
+<body>
+
+    <ul id="navigation">
+        <li><a href="/home/">Home</a></li>
+        <li><a href="/category/">Categories</a></li>
+        <li><a href="/admin/">Admin</a></li>
+        {% block tabs %}
+        {% endblock %}
+    </ul>
+
+
+    {% block content %}{% endblock %}
+
+</body>
+</html>

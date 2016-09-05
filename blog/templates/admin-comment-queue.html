@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+    <header> <h1>Comments</h1> </header>
+    <h2> Queued Comments: {{queued_comments_count}}</h2>
+    {% for comment in queued_comments %}
+        <p>Name: {{comment.name}}</p>
+        <p>Email: {{comment.email}}</p>
+        <p>Content:<p>
+        <p>{{comment.content}}</p>
+        <p>Post: <a href="/post/{{comment.post_id}}">{{comment.post_title}}</a></p>
+
+        <a href="/admin/comment/{{comment.id}}/approve/"><button type="button">Approve</button></a>
+        <a href="/admin/comment/{{comment.id}}/delete/"><button type="button">Delete</button></a>
+        <a href="/admin/comment/{{comment.id}}/"><button type="button">Edit</button></a>
+        <hr>
+    {% endfor %}
+
+    <h2>Approved Comments: {{approved_comments_count}}</h2>
+    {% for comment in approved_comments %}
+        <p>Name: {{comment.name}}</p>
+        <p>Email: {{comment.email}}</p>
+        <p>Content:<p>
+        <p>{{comment.content}}</p>
+        <p>Post: <a href="/post/{{comment.post_id}}">{{comment.post_title}}</a></p>
+        <a href="/admin/comment/{{comment.id}}/delete/"><button type="button">Delete</button></a>
+        <a href="/admin/comment/{{comment.id}}/"><button type="button">Edit</button></a>
+        <hr>
+
+    {% endfor %}
+
+{% endblock %}

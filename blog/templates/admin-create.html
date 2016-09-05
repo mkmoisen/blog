@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block css %}
+    input{
+        width: 100%;
+        padding: 12px 20px;
+        margin: 8px 0;
+        font-size: 18px;
+    }
+    textarea {
+        height: 250px;
+
+    }
+
+    #spam-check {
+        width: 25px;
+    }
+
+    button {
+        padding: 15px 32px;
+        font-size: 18px;
+    }
+{% endblock %}
+{% block content %}
+    <header>
+        <h1>Admin Create</h1>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    <form action="/admin/create/" method="POST">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul id="messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <p>First Name</p>
+        <input name="first_name" value="{{first_name}}" type="text">
+
+        <p>Last Name</p>
+        <input name="last_name" value="{{last_name}}"  type="text">
+
+        <p>Email</p>
+        <input name="email" value="{{email}}" type="text">
+
+        <p>Password</p>
+        <input name="password" value="" type="password" placeholder="">
+
+        <p>Are you a human?
+        <input id="spam-check" name="spam_check" type="text"> {{spam_operator}} {{spam_word}} = {{spam_answer}} </p>
+        <button type="submit">Submit</button>
+    </form>
+
+{% endblock %}

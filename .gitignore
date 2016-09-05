@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Local settings
+blog/local_settings.py
+
+# pycharm
+.idea/*
