@@ -93,3 +93,6 @@ blog/local_settings.py
 
 # pycharm
 .idea/*
+
+# sqlite3
+blog/db.db
