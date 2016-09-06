@@ -15,6 +15,8 @@ from passlib.hash import sha256_crypt
 from sqlalchemy import desc
 import re
 import validate_email
+from werkzeug.utils import secure_filename
+import os
 
 def login_required(f):
     @wraps(f)
@@ -241,6 +243,29 @@ def admin_category_create(category_id=None):
         return redirect(url_for('admin_category_create'))
 
 
+@app.route('/admin/post/upload-image/', methods=['POST'])
+def admin_post_upload_image():
+    app.logger.debug("request.files is {}".format(request.files))
+    if 'file' in request.files:
+        file = request.files['file']
+
+        app.logger.debug("filename is {}".format(file.filename))
+
+        if file.filename == '':
+            flash('No selected file', 'error')
+
+        file_name = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_name))
+
+        app.logger.debug("file was saved")
+
+        return redirect(url_for('admin_post_create', post_id=post.id))
+
+
+
+
+    return redirect(url_for('admin_post_create', post_id=post_id))
+
 
 @app.route('/admin/post/', methods=['GET', 'POST'])
 @app.route('/admin/post/<int:post_id>/', methods=['GET','POST'])
@@ -304,7 +329,27 @@ def admin_post_create(post_id=None):
             session['title'] = title
             session['content'] = content
             session['category_id'] = category_id
+            session['post_id'] = post_id
             return redirect(url_for('admin_post_create'))
+
+        app.logger.debug("File in request.files? {}".format('file' in request.files))
+        app.logger.debug("request.files is {}".format(request.files))
+        if 'file' in request.files:
+            file = request.files['file']
+
+            app.logger.debug("filename is {}".format(file.filename))
+
+            if file.filename is not None and file.filename != '':
+                file_name = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_name))
+
+                app.logger.debug("file was saved")
+
+                post.content += '\n' + '![{file_name}](/static/{file_name}) \n'.format(file_name=file_name)
+                db.session.add(post)
+                db.session.commit()
+
+                return redirect(url_for('admin_post_create', post_id=post.id))
 
         return redirect(url_for('post', post_id=post.id))
 

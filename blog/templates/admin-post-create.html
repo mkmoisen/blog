@@ -21,7 +21,7 @@
             {% endif %}
         {% endwith %}
 
-        <form action="/admin/post/" method="POST">
+        <form action="/admin/post/" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="post_id" value="{{post_id}}">
             <h2>Category</h2>
             <select name="category_id">
@@ -34,6 +34,8 @@
             <input type="text" id="post-title" name="post_title" value="{{title}}">
             <h2>Content</h2>
             <textarea id="post-content" name="post_content">{{content}}</textarea>
+            <input type="file" name="file">
+            <button type="submit">Upload image</button>
             <button type="submit">Submit</button>
         </form>
 

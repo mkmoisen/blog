@@ -17,6 +17,7 @@ if app.config['DATABASE'] == 'sqlite':
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+app.config['UPLOAD_FOLDER'] = app.static_folder
 
 db = SQLAlchemy(app)
 

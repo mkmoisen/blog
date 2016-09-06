@@ -1,0 +1,5 @@
+flask
+flask_sqlalchemy
+markdown
+passlib
+validate_email
