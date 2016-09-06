@@ -29,6 +29,7 @@ def login_required(f):
     return _login_required
 
 
+@app.route('/', methods=['GET'])
 @app.route('/home/', methods=['GET'])
 def home():
     posts = db.session.query(Post, Category).outerjoin(Category) \
