@@ -31,6 +31,10 @@
 {% endblock %}
 {% block content %}
     <header> <h1>{{category_name}}</h1></header>
+    {% if is_admin %}
+    <a href="/admin/post/new/?main_category_id={{category_id}}"><button type="submit">Add Post</button></a>
+    <a href="/admin/category/{{category_id}}/"><button type="submit">Edit Category</button></a>
+    {% endif %}
     <table id="post-table">
         <thead>
             <tr>

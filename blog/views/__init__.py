@@ -1,42 +1,59 @@
 from blog import app, db
-from werkzeug.exceptions import BadRequest
 from functools import wraps
-from flask import jsonify
-from sqlalchemy.exc import SQLAlchemyError
+from flask import jsonify, abort, render_template
+from sqlalchemy.orm.exc import NoResultFound
 
-class UserError(Exception):
-    pass
-
+date_format = '%Y-%m-%dT%H:%M:%S.%fZ'
 
 class ServerError(Exception):
     pass
 
-date_format = '%Y-%m-%dT%H:%M:%S.%fZ'
+class UserError(Exception):
+    pass
 
+def try_except(api=False):
+    def real_decorator(func):
+        @wraps(func)
+        def _try_except(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except NoResultFound as ex:
+                app.logger.exception("NoResultFound in {}".format(func.__name__))
+                db.session.rollback()
+                if not api:
+                    abort(404)
+            except UserError as ex:
+                app.logger.exception("UserError in {}: {}".format(func.__name__, ex.message))
+                db.session.rollback()
+                if not api:
+                    abort(400)
+                return jsonify({"error": ex.message}), 400
+            except ServerError as ex:
+                app.logger.exception("ServerError in {}: {}".format(func.__name__, ex.message))
+                db.session.rollback()
+                if not api:
+                    abort(400)
+                return jsonify({"error": ex.message}), 500
+            except Exception as ex:
+                app.logger.exception("Exception in {}: {}".format(func.__name__, ex.message))
+                db.session.rollback()
+                if not api:
+                    abort(500)
+                return jsonify({"error": ex.message}), 500
+        return _try_except
+    return real_decorator
 
+@app.errorhandler(404)
+def page_not_found(error):
+    app.logger.debug("I AM 404 LOL")
+    return render_template('404.html')
+
+@app.errorhandler(500)
+def page_not_found(error):
+    app.logger.debug("I AM 500 LOL")
+    return render_template('500.html')
+'''
 def try_except(func):
-    '''
-    Boiler plate code to reduce exception catching in route calls.
-    This wraps all the routes in a try except that catches UserError, ServerError, and Exception
-        and fails gracefully by returning a correct json
-
-    For all the routes do this:
-
-    @app.route('/hello/')
-    @try_except
-    def hello():
-
-        try:
-            print 10 / user_submitted_value
-        except ZeroDivisionError as ex:
-            raise UserError(ex.message)
-
-        try:
-            # Do something on the back end
-        except SomeBackEndException as ex:
-            raise ServerError(ex.message)
-
-    '''
     @wraps(func)
     def _try_except(*args, **kwargs):
         try:
@@ -58,7 +75,7 @@ def try_except(func):
             return jsonify({'error': ex.message}), 500
 
         except SQLAlchemyError as ex:
-            ''' This is a server error '''
+            #This is a server error
             app.logger.exception(ex.message)
             db.session.rollback()
             return jsonify({'error': ex.message}), 500
@@ -69,5 +86,5 @@ def try_except(func):
             return jsonify({'error': ex.message}), 500
 
     return _try_except
-
+'''
 import home

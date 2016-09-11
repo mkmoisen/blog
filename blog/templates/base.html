@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% block meta %}
+    <title>Matthew Moisen</title>
+    {% endblock %}
     <style type="text/css">
         body{
             background-color: #EEEEEE;
@@ -37,7 +40,7 @@
          }
 
          /* For flask Flash messages */
-         #messages {
+         .messages {
             margin: 0;
             padding: 0;
             list-style-type: none;
@@ -45,28 +48,39 @@
             top: 0;
             width:650px;
          }
-         #messages li {
+         .messages li {
             display: block;
             text-align: left;
             padding: 14px 16px;
             border-radius: 20px;
          }
-         #messages li.error {
+         .messages li.error {
             background-color: #ffe6e6;
             color: red;
          }
-         #messages li.success {
+         .messages li.success {
             background-color: #e6ffe6;
             color: green;
          }
 
-         /* For general inputs */
-         input, textarea, select {
+
+
+        /* For general inputs */
+          input, textarea, select {
             width: 100%;
             padding: 12px 20px;
             margin: 8px 0;
             font-size: 18px;
         }
+
+        input[type='checkbox'] {
+            width:30px;
+            height:30px;
+
+        }
+
+
+
         textarea {
             height: 250px;
 
@@ -91,16 +105,48 @@
             background-color: #d9d9d9;
         }
 
+        table, td, th {
+            text-align: left;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th {
+            padding: 15px;
+        }
+        th, td {
+            border-bottom: 1px solid #ddd;
+
+        }
+
+        tr:hover {
+            background-color: #ddd;
+        }
+
+        #post-table a {
+            display: block;
+            color: black;
+            text-decoration: none;
+            padding: 15px;
+         }
+
          {% block css %}{% endblock %}
 
     </style>
-    <title>Matthew Moisen</title>
+
+    {% block js %}{% endblock %}
+
 </head>
 <body>
 
     <ul id="navigation">
-        <li><a href="/home/">Home</a></li>
-        <li><a href="/category/">Categories</a></li>
+        <li><a href="/">Home</a></li>
+        <li><a href="/category/">Blog Categories</a></li>
+        <li><a href="/projects/">Projects</a></li>
+        <li><a href="/resume/">Résumé</a></li>
         <li><a href="/admin/">Admin</a></li>
         {% block tabs %}
         {% endblock %}

@@ -3,11 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
 from settings import Config
+import os
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
 app.config['DATABASE'] = app.config['DATABASE']
+
+
 
 if app.config['DATABASE'] == 'sqlite':
     # Sqlite doesn't enforce Foreign Keys by default. This enables it
@@ -17,7 +20,7 @@ if app.config['DATABASE'] == 'sqlite':
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-app.config['UPLOAD_FOLDER'] = app.static_folder
+app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'images')
 
 db = SQLAlchemy(app)
 

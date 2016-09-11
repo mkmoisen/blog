@@ -1,14 +1,15 @@
+# -*- coding: utf-8 -*-
 from blog.models import *
 from blog import app
 from blog import db
-from . import UserError, ServerError, date_format
-from flask import jsonify, request, url_for, redirect, g, session, render_template, flash
+from . import  date_format
+from flask import jsonify, request, url_for, redirect, g, session, render_template, flash, abort
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import BadRequest
 from functools import wraps
-from . import try_except
+from . import try_except, UserError, ServerError
 from blog.models import *
 import markdown
 from passlib.hash import sha256_crypt
@@ -17,11 +18,14 @@ import re
 import validate_email
 from werkzeug.utils import secure_filename
 import os
+from sqlalchemy.sql import func
+from sqlalchemy.sql.expression import literal_column
+from BeautifulSoup import BeautifulSoup
 
 def login_required(f):
     @wraps(f)
     def _login_required(*args, **kwargs):
-        if not session or not 'logged_in' in session or not session['logged_in']:
+        if not session or 'logged_in' not in session or not session['logged_in']:
             return redirect(url_for('admin_login'))
 
         return f(*args, **kwargs)
@@ -29,12 +33,53 @@ def login_required(f):
     return _login_required
 
 
+@app.route('/blog/<url_name>/', methods=['GET'])
+def get_post_by_name(url_name):
+    p = db.session.query(Post).filter_by(url_name=url_name).one()
+
+    return post(p.id)
+
+from sqlalchemy import and_
+
+
+
 @app.route('/', methods=['GET'])
 @app.route('/home/', methods=['GET'])
+@app.route('/post/', methods=['GET'])
+@try_except()
 def home():
-    posts = db.session.query(Post, Category).outerjoin(Category) \
+    '''
+    Grab all published posts and display for user along with category
+    '''
+    posts = db.session.query(Post, Category) \
+        .outerjoin(CategoryPost, and_(Post.id == CategoryPost.post_id, Post.category_id == CategoryPost.category_id)) \
+        .outerjoin(Category) \
         .filter(Post.is_published == True) \
-        .order_by(desc(Post.creation_date))\
+        .order_by(Post.creation_date.desc())\
+        .all()
+
+    is_admin = check_admin_status()
+
+    posts = [
+        {
+            'title': p.title,
+            'post_id': p.id,
+            'url_name': p.url_name,
+            'category': c.name if c is not None else 'Uncategorized',
+            'category_id': c.id if c is not None else 0
+
+        }
+        for p, c in posts
+    ]
+    return render_template('home.html', posts=posts, is_admin=is_admin)
+
+@app.route('/admin/post/', methods=['GET'])
+@try_except()
+@login_required
+def admin_post():
+    posts = db.session.query(Post, Category).outerjoin(Category) \
+        .order_by(Post.is_published.asc()) \
+        .order_by(Post.creation_date.desc())\
         .all()
 
     posts = [
@@ -42,29 +87,198 @@ def home():
             'title': p.title,
             'category': c.name if c is not None else 'Uncategorized',
             'post_id': p.id,
+            'is_published': p.is_published,
+            'url_name': p.url_name,
             'category_id': c.id if c is not None else 0
         }
         for p, c in posts
     ]
-    return render_template('home.html', posts=posts)
+
+    return render_template('admin-post.html', posts=posts)
+
+
+'''
+def print_tree(tree, depth=0):
+    for child in tree:
+        print '    ' * depth + child['name']
+        print_tree(child['children'], depth + 1)
+
+
+def iter_tree(tree, depth=0):
+    for child in tree:
+        yield '    ' * depth + child['name']
+        for i in iter_tree(child['children'], depth + 1):
+            yield i
+
+def _append_tree(category, tree):
+    tree.append({'id': category.id, 'name': category.name, 'children': []})
+
+def add_node(category, tree):
+    if category.parent_id is None:
+        _append_tree(category, tree)
+        return 1
+    for child in tree:
+        if category.parent_id == child['id']:
+            _append_tree(category, child['children'])
+            return 1
+        if add_node(category, child['children']):
+            return 1
+    return 0
+'''
+
+
+
+def print_tree(tree, depth=0):
+    for child in tree:
+        print '    ' * depth + child['category'].name
+        print_tree(child['children'], depth + 1)
+
+
+def iter_tree(tree, depth=0):
+    for child in tree:
+        yield depth, child['category']
+        for i in iter_tree(child['children'], depth + 1):
+            yield i
+
+def _append_tree(category, tree, parent=None):
+    tree.append({'parent': parent, 'category': category, 'children': []})
+
+def _add_node(category, tree, back=None):
+    if back is None:
+        back = {}
+    for child in tree:
+        if category.parent_id == child['category'].id:
+            _append_tree(category, child['children'], child)
+            back[category.id] = child['category']
+            return 1
+        if _add_node(category, child['children'], back):
+            return 1
+    return 0
+
+def add_node(category, tree, back=None):
+    if back is None:
+        back = {}
+    if category.parent_id is None:
+        _append_tree(category, tree)
+        back[category.id] = None
+        return 1
+
+    if not _add_node(category, tree, back):
+        # This means that the order_by clause was incorrect on the category query
+        # and that the parents have not been added before the children
+        # TODO actually should I be relying on parent_id to be ordered correctly???
+        raise ValueError("categories parent id not found for {}".format(category))
+
+def lol(back, category):
+    yield category
+    if back[category.id] is not None:
+        for i in lol(back, back[category.id]):
+            yield i
+
+def _find_ascendants(back, category):
+    yield category
+    if back[category.id] is not None:
+        for i in _find_ascendants(back, back[category.id]):
+            yield i
+
+def find_ascendants(back, category):
+    if category.parent_id is None:
+        return
+    for i in _find_ascendants(back, back[category.id]):
+        yield i
+
+
+
+
 
 @app.route('/category/', methods=['GET'])
+@try_except()
 def category():
-    categories = db.session.query(Category) \
-        .order_by(Category.name) \
-        .all()
+    '''
+    Returns a list of categories and the associated post count within each
+    '''
+
+    '''
+    tree = []
+    categories = db.session.query(Category).order_by(Category.parent_id).all()
+    for category in categories:
+        print category.id, category.name, category.parent_id
+        add_node(category, tree)
+
+    print_tree(tree)
+
+    for depth, c in iter_tree(tree):
+        print '----' * depth + c.name, c.id
+
+    '''
+
+    categories = db.session.query(Category, func.count(1)) \
+            .outerjoin(CategoryPost) \
+            .outerjoin(Post) \
+            .filter(Post.is_published == True) \
+            .group_by(Category.name) \
+            .order_by(Category.parent_id)
+
+    categories = db.session.query(Category, func.count(1)) \
+        .select_from(Post).outerjoin(CategoryPost).outerjoin(Category) \
+        .filter(Post.is_published == True) \
+        .group_by(Category) \
+        .order_by(Category.parent_id)
+
+    tree = []
+    for category, count in categories:
+        if category is not None:
+            category.count = count
+            app.logger.debug(category)
+            app.logger.debug("DID IT WORK LOL {}".format(add_node(category, tree)))
+
+    print_tree(tree)
+
+    app.logger.debug(tree)
+
+    for depth, cat in iter_tree(tree):
+        print cat
 
     categories = [
         {
+            'depth': depth,
             'name': category.name,
-            'category_id': category.id
+            'category_id': category.id,
+            'count': category.count
         }
-        for category in categories
+        for depth, category in iter_tree(tree)
     ]
 
-    return render_template('category.html', categories=categories)
+    app.logger.debug("Categories is {}".format(categories))
+
+    uncategorized = db.session.query(func.count(1)).select_from(Post).outerjoin(CategoryPost) \
+        .filter(CategoryPost.id == None).filter(Post.is_published == True).one()
+
+    if uncategorized[0]:
+        categories.append({
+            'depth': 0, 'name': 'Uncategorized', 'category_id': 0, 'count': uncategorized[0]
+        })
+
+
+    is_admin = check_admin_status()
+
+
+    return render_template('category.html', categories=categories, is_admin=is_admin)
+
+@app.route("/projects/", methods=['GET'])
+@try_except()
+def get_projects():
+    category = db.session.query(Category).filter_by(name="Projects").one()
+    return category_posts(category.id)
+
+
+@app.route('/resume/', methods=['GET'])
+@try_except()
+def resume():
+    return get_post_by_name('resume')
 
 @app.route('/category/<int:category_id>/', methods=['GET'])
+@try_except()
 def category_posts(category_id):
     # Uncategorized have category_id of Null. Because strings cannot be passed, make sure to pass a 0 instead
 
@@ -75,11 +289,13 @@ def category_posts(category_id):
         category = db.session.query(Category).filter_by(id=category_id).one()
         category_name = category.name
 
-    posts = db.session.query(Post) \
-        .filter_by(category_id=category_id) \
-        .filter_by(is_published=True) \
+    posts = db.session.query(Post).join(CategoryPost) \
+        .filter(CategoryPost.category_id == category_id) \
+        .filter(Post.is_published == True) \
         .order_by(desc(Post.creation_date)) \
         .all()
+
+    is_admin = check_admin_status()
 
     posts = [
         {
@@ -89,9 +305,11 @@ def category_posts(category_id):
         for p in posts
     ]
 
-    return render_template('category-posts.html', posts=posts, category_name=category_name)
+    return render_template('category-posts.html', posts=posts, category_name=category_name, category_id=category_id,
+                           is_admin=is_admin)
 
 @app.route('/admin/', methods=['GET'])
+@try_except()
 def admin():
     if 'logged_in' not in session or not session['logged_in']:
         return redirect(url_for('admin_login'))
@@ -99,6 +317,7 @@ def admin():
     return render_template('admin.html')
 
 @app.route('/admin/create/', methods=['GET','POST'])
+@try_except()
 def admin_create():
     if request.method == 'GET':
         try:
@@ -145,11 +364,25 @@ def admin_create():
 
     user = User(first_name=first_name, last_name=last_name, email=email, password=password)
     db.session.add(user)
+    db.session.flush()
+
+    # Create temporary Resume post
+    dt = datetime.now()
+    post = Post(user_id=user.id, title=u"Résumé", url_name='resume', description=u'Résumé for Matthew Moisen',
+                content=u'My Résumé', is_published=True, creation_date=dt, last_modified_date=dt,
+                is_commenting_disabled=True)
+    db.session.add(post)
+
+    # Create Projects Category
+    category = Category(name='Projects')
+    db.session.add(category)
+
     db.session.commit()
 
     return redirect(url_for('admin_login'))
 
 @app.route('/admin/login/', methods=['GET', 'POST'])
+@try_except()
 def admin_login():
     if request.method == 'GET':
         try:
@@ -197,17 +430,43 @@ def admin_login():
 
     return redirect(url_for('admin'))
 
-def get_categories():
-    categories = db.session.query(Category).all()
-    return [cat.json for cat in categories]
+def get_category_tree(back=None):
+    if back is None:
+        back = {}
+    tree = []
+    for category in db.session.query(Category).order_by(Category.parent_id):
+        add_node(category, tree, back)
+
+    return tree
+
+def get_categories(back=None):
+
+    tree = get_category_tree()
+
+    return [
+        {
+            'id': category.id,
+            'name': category.name,
+            'depth': depth
+        }
+        for depth, category in iter_tree(tree)
+    ]
+
+
 
 
 @app.route('/admin/category/', methods=['GET', 'POST'])
 @app.route('/admin/category/<int:category_id>/', methods=['GET','POST'])
+@try_except()
 @login_required
 def admin_category_create(category_id=None):
     category_id = '' if category_id is None else category_id
     name = ''
+    parent_id = session.pop('parent_id', None)
+    if parent_id is None:
+        parent_id = ''
+
+    categories = get_categories()
 
     if request.method == 'GET':
         if category_id != '':
@@ -217,13 +476,20 @@ def admin_category_create(category_id=None):
 
         return render_template('admin-category-create.html',
                                name=name,
-                               category_id=category_id)
+                               category_id=category_id,
+                               categories=categories,
+                               parent_id=parent_id)
 
     elif request.method == 'POST':
         app.logger.debug("FORM IS {}".format(request.form))
 
         category_id = request.form['category_id']
         name = request.form['category_name']
+        parent_id = request.form['category_parent_id']
+        try:
+            parent_id = int(parent_id)
+        except ValueError:
+            parent_id = None
 
         if category_id == '':
             category = Category()
@@ -231,68 +497,114 @@ def admin_category_create(category_id=None):
             category = db.session.query(Category).filter_by(id=category_id).one()
 
         category.name = name
+        category.parent_id = parent_id
 
         db.session.add(category)
         try:
             db.session.commit()
         except IntegrityError as ex:
             flash(ex.message, 'error')
-            return redirect(url_for('admin_category_create'))
+            session['parent_id'] = parent_id
+            return redirect(url_for('admin_category_create'), categories=categories)
         else:
             flash("Category '{}' created successfully".format(name), 'success')
 
         return redirect(url_for('admin_category_create'))
 
 
-@app.route('/admin/post/upload-image/', methods=['POST'])
-def admin_post_upload_image():
-    app.logger.debug("request.files is {}".format(request.files))
-    if 'file' in request.files:
-        file = request.files['file']
 
-        app.logger.debug("filename is {}".format(file.filename))
-
-        if file.filename == '':
-            flash('No selected file', 'error')
-
-        file_name = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_name))
-
-        app.logger.debug("file was saved")
-
-        return redirect(url_for('admin_post_create', post_id=post.id))
+@app.route('/api/upload-image/', methods=['POST'])
+@try_except(api=True)
+@login_required
+def upload_image():
+    app.logger.debug(request.files)
+    if not request.files:
+        raise UserError("File is empty")
 
 
+    file = request.files['file']
+
+    app.logger.debug("filename is {}".format(file.filename))
+
+    if file.filename is None or file.filename == '':
+        raise UserError("Filename is none or empty")
+
+    file_name = secure_filename(file.filename)
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+
+    if os.path.isfile(file_path):
+        raise UserError("A file with that name has already been saved")
+
+    try:
+        file.save(file_path)
+    except IOError as ex:
+        raise ServerError("Could not save file: {}".format(ex.message))
+
+    markdown = '\n\n' + '![{file_name}](/static/images/{file_name}) \n'.format(file_name=file_name)
+
+    return jsonify({"markdown": markdown}), 200
 
 
-    return redirect(url_for('admin_post_create', post_id=post_id))
 
 
-@app.route('/admin/post/', methods=['GET', 'POST'])
+@app.route('/admin/post/new/', methods=['GET', 'POST'])
 @app.route('/admin/post/<int:post_id>/', methods=['GET','POST'])
+@try_except()
 @login_required
 def admin_post_create(post_id=None):
+    def admin_post_create_error(message, title, content, main_category_id, other_category_ids, post_id,
+                                is_commenting_disabled):
+        flash(message, 'error')
+        session['title'] = title
+        session['content'] = content
+        session['main_category_id'] = main_category_id
+        session['other_category_ids'] = other_category_ids
+        session['post_id'] = post_id
+        session['is_commenting_disabled'] = is_commenting_disabled
+
+
+    main_category_id = request.args.get('main_category_id', '')
+    try:
+        main_category_id = int(main_category_id)
+    except ValueError:
+        main_category_id = ''
+
     title = session.pop('title', '')
     content = session.pop('content', '')
-    category_id = session.pop('category_id', '')
+    main_category_id = session.pop('main_category_id', main_category_id)
+    other_category_ids = session.pop('other_category_ids', [])
+    url_name = session.pop('url_name', '')
+    description = session.pop('url_name', '')
     post_id = '' if post_id is None else post_id
+    is_commenting_disabled = session.pop('is_commenting_disabled', False)
     categories = get_categories()
 
     if request.method == 'GET':
-        app.logger.debug("I AM GET")
+
         if post_id != '':
             post = db.session.query(Post).filter_by(id=post_id).one()
             title = post.title
             content = post.content
+            url_name = post.url_name
+            description = post.description
             post_id = post.id
-            category_id = post.category_id
+            main_category_id = post.category_id
+            is_commenting_disabled = post.is_commenting_disabled
+
+            other_categories = db.session.query(CategoryPost).filter_by(post_id=post_id).all()
+            other_category_ids = [other_category.category_id for other_category in other_categories]
 
         return render_template('admin-post-create.html',
-                       title=title,
-                       content=content,
-                       post_id=post_id,
-                       categories=categories,
-                       category_id=category_id)
+                               title=title,
+                               content=content,
+                               post_id=post_id,
+                               description=description,
+                               url_name=url_name,
+                               categories=categories,
+                               main_category_id=main_category_id,
+                               other_category_ids=other_category_ids,
+                               is_commenting_disabled=is_commenting_disabled)
 
     elif request.method == 'POST':
         app.logger.debug("I AM POST")
@@ -300,12 +612,36 @@ def admin_post_create(post_id=None):
         post_id = request.form['post_id']
         title = request.form['post_title']
         content = request.form['post_content']
-        category_id = request.form['category_id']
+        main_category_id = request.form['main_category_id']
+        # Use request.form.getlist to pull all values from multivalue select list
+        # request.form.get only pulls out the first option
+        other_category_ids = request.form.getlist('other_category_ids')
+        url_name = request.form['url_name']
+        description = request.form['description']
+        submit = request.form['submit']
+        is_commenting_disabled = True if 'is_commenting_disabled' in request.form else False
 
-        if category_id == '':
-            category_id = None
+        app.logger.debug("other_category_ids is {}".format(other_category_ids))
+
+        # Category can be null for an uncategorized post
+        if main_category_id == '':
+            main_category_id = None
         else:
-            category_id = int(category_id)
+            main_category_id = int(main_category_id)
+
+        other_category_ids = map(int, other_category_ids)
+
+
+        app.logger.debug("other_category_ids is {}".format(other_category_ids))
+
+        # If user forgot to select a main category id, pick the first one from other categories
+        if other_category_ids and main_category_id is None:
+            main_category_id = other_category_ids[0]
+
+        # Make sure to add main_category_id if it wasn't selected in other_category_ids
+        #if not other_category_ids and main_category_id is not None:
+        if main_category_id is not None and main_category_id not in other_category_ids:
+            other_category_ids.append(main_category_id)
 
         dt = datetime.now()
         if post_id == '':
@@ -318,19 +654,64 @@ def admin_post_create(post_id=None):
         # What if I want to legitimately use '\r\n' ?
         post.content = content.replace('\r\n', '\n')
         post.last_modified_date = dt
-        post.category_id = category_id
+        post.category_id = main_category_id
         post.user_id = session['user_id']
+        post.is_commenting_disabled = is_commenting_disabled
+
+        if url_name == '':
+            url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', title)
+            url_name = ' '.join(url_name.split())
+            url_name = url_name.lower().replace(' ', '-')
+
+
+        if description == '':
+            description = title.capitalize()
+
+        post.description = description
+
+        post.url_name = url_name
+
+        if title == '' or content == '':
+            admin_post_create_error('Title or content is empty', title, content, main_category_id, other_category_ids,
+                                    post_id, is_commenting_disabled)
+            return redirect(url_for('admin_post_create'))
+
+        if submit == 'publish':
+            post.is_published = True
+        elif submit == 'draft':
+            post.is_published = False
 
         db.session.add(post)
+        try:
+            db.session.flush()
+        except SQLAlchemyError as ex:
+            app.logger.debug("ERROR {}".format(ex.message))
+            admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
+                                    post_id, is_commenting_disabled)
+            return redirect(url_for('admin_post_create'))
+
+        db.session.query(CategoryPost).filter_by(post_id=post.id).delete()
+
+
+        # other_category_ids has all the other_category_ids AND the main_category_id in it now
+        all_category_ids = set(other_category_ids)
+        back = {}
+        get_category_tree(back)
+        other_categories = db.session.query(Category).filter(Category.id.in_(other_category_ids)).all()
+        for other_category in other_categories:
+            for ascendant in find_ascendants(back, other_category):
+                all_category_ids.add(ascendant.id)
+
+        category_posts = [CategoryPost(category_id=category_id, post_id=post.id) for category_id in all_category_ids]
+        if category_posts:
+            db.session.bulk_save_objects(category_posts)
+
         try:
             db.session.commit()
         except SQLAlchemyError as ex:
             app.logger.debug("ERROR {}".format(ex.message))
-            flash(ex.message, 'error')
-            session['title'] = title
-            session['content'] = content
-            session['category_id'] = category_id
-            session['post_id'] = post_id
+            admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
+                                    post_id, is_commenting_disabled)
             return redirect(url_for('admin_post_create'))
 
         app.logger.debug("File in request.files? {}".format('file' in request.files))
@@ -354,16 +735,56 @@ def admin_post_create(post_id=None):
 
         return redirect(url_for('post', post_id=post.id))
 
+@app.route('/admin/post/<int:post_id>/publish/', methods=['GET'])
+@try_except()
+def mark_post_as_published(post_id):
+    last_url = request.args.get('last_url', 'post')
 
+    post = db.session.query(Post).filter_by(id=post_id).one()
+    if not post.is_published:
+        post.is_published = True
+        db.session.add(post)
+        db.session.commit()
 
+    return redirect(url_for(last_url, post_id=post_id))
+
+@app.route('/admin/post/<int:post_id>/draft/', methods=['GET'])
+@try_except()
+def mark_post_as_draft(post_id):
+    post = db.session.query(Post).filter_by(id=post_id).one()
+
+    last_url = request.args.get('last_url', 'post')
+
+    if post.is_published:
+        post.is_published = False
+        db.session.add(post)
+        db.session.commit()
+
+    return redirect(url_for(last_url, post_id=post_id))
+
+def check_admin_status():
+    return 'is_admin' in session and session['is_admin']
 
 @app.route('/post/<int:post_id>/', methods=['GET'])
+@try_except()
 def post(post_id):
     post = db.session.query(Post).filter_by(id=post_id).one()
+
+    is_admin = check_admin_status()
+
+    # Only admin should be able to view drafts
+    if not post.is_published:
+        if not is_admin:
+            abort(404)
+
     title = post.title
     # markdown should be applied when comment is created
     content = markdown.markdown(post.content)
     post_id = post.id
+    is_published = post.is_published
+    url_name = post.url_name
+    description = post.description
+    is_commenting_disabled = post.is_commenting_disabled
 
 
     comment_name = session.pop('comment_name', '')
@@ -388,13 +809,18 @@ def post(post_id):
     spam = math_spam()
 
     return render_template('post.html',
+                           is_admin=is_admin,
                            title=title,
                            content=content,
                            post_id=post_id,
+                           url_name=url_name,
+                           is_published=is_published,
+                           description=description,
                            comment_name=comment_name,
                            comment_content=comment_content,
                            comment_email=comment_email,
                            comments=comments,
+                           is_commenting_disabled=is_commenting_disabled,
                            spam_operator=spam['operator'],
                            spam_word=spam['word'],
                            spam_answer=spam['answer'])
@@ -405,6 +831,7 @@ def check_for_urls(text):
     return re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
 
 @app.route('/post/<int:post_id>/comment/', methods=['POST'])
+@try_except()
 def post_comment(post_id):
 
     post = db.session.query(Post).filter_by(id=post_id).one()
@@ -414,6 +841,7 @@ def post_comment(post_id):
     email = request.form['comment_email']
     content = request.form['comment_content']
     input_spam_check = request.form['spam_check']
+
 
     resubmit = spam_check(input_spam_check)
 
@@ -442,7 +870,9 @@ def post_comment(post_id):
         session['comment_content'] = content
         return redirect(url_for('post', post_id=post_id))
 
-
+    # Sanitize Name and Comment of any html tabgs
+    soups = (BeautifulSoup(name), BeautifulSoup(email), BeautifulSoup(content))
+    name, email, content = (''.join(soup.findAll(text=True)) for soup in soups)
 
     creation_date = datetime.now()
 
@@ -472,6 +902,7 @@ def comment_json(q):
 
 @app.route('/admin/comment/<int:comment_id>/', methods=['GET', 'POST'])
 @login_required
+@try_except()
 def admin_comment(comment_id):
     comment = db.session.query(Comment).filter_by(id=comment_id).one()
 
@@ -515,6 +946,7 @@ def admin_comment(comment_id):
 
 @app.route('/admin/comment/queue/', methods=['GET'])
 @login_required
+@try_except()
 def admin_comment_queue():
     queued_comments = db.session.query(Comment, Post).join(Post).filter(Comment.is_approved == False).all()
     queued_comments = comment_json(queued_comments)
@@ -528,6 +960,7 @@ def admin_comment_queue():
                            queued_comments_count=queued_comments_count, approved_comments_count=approved_comments_count)
 
 @app.route('/admin/comment/<int:comment_id>/approve/')
+@try_except()
 @login_required
 def admin_comment_approve(comment_id):
     comment = db.session.query(Comment).filter_by(id=comment_id).one()
@@ -538,6 +971,7 @@ def admin_comment_approve(comment_id):
     return redirect(url_for('admin_comment_queue'))
 
 @app.route('/admin/comment/<int:comment_id>/delete/')
+@try_except()
 @login_required
 def admin_comment_delete(comment_id):
     comment = db.session.query(Comment).filter_by(id=comment_id).one()
@@ -545,12 +979,6 @@ def admin_comment_delete(comment_id):
     db.session.commit()
 
     return redirect(url_for('admin_comment_queue'))
-
-
-
-
-
-
 
 
 number_words = {

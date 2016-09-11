@@ -7,13 +7,65 @@
     #post-title {
         width: 650px;
     }
+    #other-category-ids {
+        height:200px;
+    }
+
+
+{% endblock %}
+{% block js %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+
+        $('#image-messages').hide();
+
+        $('#upload-image-btn').click(function() {
+            //var form_data = new FormData($('#upload-image')[0]);
+            var form_data = new FormData();
+            form_data.append('file', $('#upload-image')[0].files[0]);
+            console.log(form_data);
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/upload-image/',
+                data: form_data,
+                contentType: false,
+                cache: false,
+                processData: false,
+                async: false,
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Success!');
+                    console.log(data);
+                    $('#image-messages li:first').text('Image saved successfully').attr("class", "success");
+                    $('#image-messages').show().hide(3000);
+
+                    var post_content = $('#post-content').val() + data['markdown'];
+                    console.log(post_content);
+                    $('#post-content').val(post_content);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    var status = jqXHR.status;
+                    var responseJSON = jqXHR.responseJSON;
+                    console.log(status);
+                    console.log(responseJSON);
+
+                    $('#image-messages li:first').text(responseJSON['error']).attr("class", "error");
+                    $('#image-messages').show();
+
+                }
+            });
+        });
+});
+</script>
 {% endblock %}
 {% block content %}
     <header>
         <h1>Create new Post</h1>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <ul id="messages">
+                <ul class="messages">
                 {% for category, message in messages %}
                     <li class="{{ category }}">{{ message }}</li>
                 {% endfor %}
@@ -21,23 +73,55 @@
             {% endif %}
         {% endwith %}
 
-        <form action="/admin/post/" method="POST" enctype="multipart/form-data">
+
+        <form action="/admin/post/new/" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="post_id" value="{{post_id}}">
-            <h2>Category</h2>
-            <select name="category_id">
+
+            <h2>Main Category</h2>
+            <select name="main_category_id">
                 <option value="">Uncategorized</option>
                 {% for category in categories %}
-                <option value="{{category.id}}" {{ 'selected' if category_id == category.id else '' }}>{{category.name}}</option>
+                <option value="{{category.id}}" {{ 'selected' if main_category_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
                 {% endfor %}
             </select>
+
+            <h2>Other Categories</h2>
+            <select id="other-category-ids" name="other_category_ids" multiple>
+                {% for category in categories %}
+                <option value="{{category.id}}" {{ 'selected' if category.id in other_category_ids else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{category.name}}</option>
+
+                {% endfor %}
+            </select>
+
             <h2>Title</h2>
             <input type="text" id="post-title" name="post_title" value="{{title}}">
+
+            <h2>Url Name</h2>
+            <input type="text" name="url_name" value="{{url_name}}" placeholder="Leave blank to use title as url name">
+
+            <h2>Description</h2>
+            <input type="text" name="description" value="{{description}}" placeholder="Leave blank to use title as description">
+
+            <h2>Disable comments</h2>
+            <input type="checkbox" name="is_commenting_disabled" value="true" {{'checked' if is_commenting_disabled else '' }}>
+
             <h2>Content</h2>
             <textarea id="post-content" name="post_content">{{content}}</textarea>
-            <input type="file" name="file">
-            <button type="submit">Upload image</button>
-            <button type="submit">Submit</button>
+
+
+            <button type="submit" name="submit" value="publish">Publish Post</button>
+            <button type="submit" name="submit" value="draft">Save as Draft</button>
         </form>
 
+
+        <ul class="messages" id="image-messages">
+
+            <li class="error">NOOB</li>
+
+        </ul>
+
+        <input id="upload-image" type="file" name="file"><button id="upload-image-btn" type="submit"  value="upload_image">Upload image</button>
+
     </header>
+
 {% endblock %}

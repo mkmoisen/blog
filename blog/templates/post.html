@@ -1,4 +1,11 @@
 {% extends "base.html" %}
+
+{% block meta %}
+    <meta name="description" content="{{description}}"/>
+    <link rel="canonical" href="http://matthewmoisen.com/blog/{{url_name}}/">
+    <title>{{title}}</title>
+{% endblock %}
+
 {% block css %}
 
 {% endblock %}
@@ -6,36 +13,56 @@
     <header>
         <h1>{{title}}</h1>
     </header>
+    {% if is_admin %}
+    <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
+        {% if is_published %}
+        <a href="/admin/post/{{post_id}}/draft/"><button type="submit">Mark as Draft</button></a>
+        {% else %}
+        <a href="/admin/post/{{post_id}}/publish/"><button type="submit">Mark as Published</button></a>
+        {% endif %}
+    {% endif %}
+
     {{content|safe}}
 
-    <hr>
-    <h2>Comments</h2>
-    <h3> Add Comment</h3>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <ul id="messages">
-                {% for category, message in messages %}
-                    <li class="{{ category }}">{{ message }}</li>
-                {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-    <form action="/post/{{post_id}}/comment/" method="POST">
-        <p>Name <input name="comment_name" value="{{comment_name}}" type="text" placeholder="Name is required and will be displayed"></p>
+    {% if is_admin %}
+    <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
+        {% if is_published %}
+        <a href="/admin/post/{{post_id}}/draft/"><button type="submit">Mark as Draft</button></a>
+        {% else %}
+        <a href="/admin/post/{{post_id}}/publish/"><button type="submit">Mark as Published</button></a>
+        {% endif %}
+    {% endif %}
 
-        <p>Email <input name="comment_email" value="{{comment_email}}" type="text" placeholder="Email is optional and is NOT displayed"></p>
+    {% if not is_commenting_disabled %}
+        <hr>
+        <h2>Comments</h2>
+        <h3> Add Comment</h3>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul class="messages">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+        <form action="/post/{{post_id}}/comment/" method="POST">
+            <p>Name <input name="comment_name" value="{{comment_name}}" type="text" placeholder="Name is required and will be displayed"></p>
 
-        <p>Comment</p>
-        <textarea name="comment_content" placeholder="Comments can use markdown syntax, but URLs and images are not permitted">{{comment_content}}</textarea>
+            <p>Email <input name="comment_email" value="{{comment_email}}" type="text" placeholder="Email is optional and is NOT displayed"></p>
 
-        <p>Are you a human?
-        <input id="spam-check" name="spam_check" type="text"> {{spam_operator}} {{spam_word}} = {{spam_answer}} </p>
-        <button type="submit">Submit</button>
-    </form>
-    <hr>
-    {% for comment in comments %}
-        <p>Name: {{comment.name}}</p>
-        <p>{{comment.content}}</p>
-        <hr/>
-    {% endfor %}
+            <p>Comment</p>
+            <textarea name="comment_content" placeholder="Comments can use markdown syntax, but URLs and images are not permitted">{{comment_content}}</textarea>
+
+            <p>Are you a human?
+            <input id="spam-check" name="spam_check" type="text"> {{spam_operator}} {{spam_word}} = {{spam_answer}} </p>
+            <button type="submit">Submit</button>
+        </form>
+        <hr>
+        {% for comment in comments %}
+            <p>Name: {{comment.name}}</p>
+            <p>{{comment.content}}</p>
+            <hr/>
+        {% endfor %}
+    {% endif %}
 {% endblock %}

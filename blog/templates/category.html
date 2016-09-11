@@ -31,16 +31,21 @@
 {% endblock %}
 {% block content %}
     <header> <h1>Categories</h1></header>
+    {% if is_admin %}
+    <a href="/admin/category/"><button type="submit">Add Category</button></a>
+    {% endif %}
     <table id="post-table">
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Post Count</th>
             </tr>
         </thead>
         <tbody>
         {% for category in categories %}
             <tr>
-                <td><a href="/category/{{category.category_id}}/">{{category.name}}</a></td>
+                <td><a href="/category/{{category.category_id}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                <td>{{category.count}}</td>
             </tr>
         {% endfor %}
         </tbody>

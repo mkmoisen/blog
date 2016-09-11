@@ -96,3 +96,5 @@ blog/local_settings.py
 
 # sqlite3
 blog/db.db
+
+blog/static/*

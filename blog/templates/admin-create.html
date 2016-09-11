@@ -25,17 +25,11 @@
         <h1>Admin Create</h1>
     </header>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <p>{{ message }}</p>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+
     <form action="/admin/create/" method="POST">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <ul id="messages">
+                <ul class="messages">
                 {% for category, message in messages %}
                     <li class="{{ category }}">{{ message }}</li>
                 {% endfor %}
