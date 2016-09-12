@@ -40,6 +40,20 @@ class Post(BaseModel):
                       db.CheckConstraint("content <> ''"),
                       {'sqlite_autoincrement': True})
 
+
+class Wordpress(BaseModel):
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String, nullable=False)  # Image, guid, wordpress_url
+    val = db.Column(db.String, nullable=False)
+    redirect = db.Column(db.String, nullable=False)
+
+    __table_args__ = (db.CheckConstraint("type in ('image', 'guid', 'url')"),
+                      (db.UniqueConstraint("type", "val")),
+                      {'sqlite_autoincrement': True}
+                      )
+
+
+
 class CategoryPost(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id', ondelete='CASCADE'), nullable=False, index=True)

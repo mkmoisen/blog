@@ -33,10 +33,56 @@ def login_required(f):
     return _login_required
 
 
+@app.route('/blog/')
+@try_except()
+def blog():
+    if 'p' not in request.args:
+        return redirect(url_for('/home/'))
+
+    app.logger.debug('arg is {}'.format(request.args['p']))
+
+    # This must be a old wordpress URL
+    wordpress = db.session.query(Wordpress).filter_by(type='guid').filter_by(val=request.args['p']).one()
+    #p = db.session.query(Post).filter_by(wordpress_guid=request.args['p']).one()
+    url_name = wordpress.redirect
+
+    return redirect(url_for('get_post_by_name', url_name=url_name), 301)
+
+@app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
+@try_except()
+def wordpress_full_url(first_cat, second_cat, url_name):
+    app.logger.debug("in wordpress_full_url")
+    wordpress_url = first_cat + '/' + second_cat + '/' + url_name + '/'
+
+    app.logger.debug("wordpress_url is {}".format(wordpress_url))
+
+    #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
+    #url_name = p.url_name
+
+    wordpress = db.session.query(Wordpress).filter_by(type='url').filter_by(val=wordpress_url).one()
+    url_name = wordpress.redirect
+    return redirect(url_for('get_post_by_name', url_name=url_name), 301)
+
+@app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
+@try_except()
+def wordpress_images(year, month, path):
+    image_url = 'wp-content/uploads/{}/{}/{}'.format(year, month, path)
+
+    app.logger.debug(image_url)
+
+    wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
+    url_name = wordpress.redirect
+
+    app.logger.debug(redirect)
+
+    return redirect(url_name, 301)
+
+# TODO WHAT ABOUT DATA: PICTURES?
+
 @app.route('/blog/<url_name>/', methods=['GET'])
+@try_except()
 def get_post_by_name(url_name):
     p = db.session.query(Post).filter_by(url_name=url_name).one()
-
     return post(p.id)
 
 from sqlalchemy import and_
