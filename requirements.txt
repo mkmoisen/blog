@@ -4,3 +4,6 @@ markdown
 passlib
 validate_email
 BeautifulSoup
+html2text
+pymysql
+requests
