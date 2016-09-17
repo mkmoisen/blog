@@ -28,8 +28,10 @@
             <select name="category_parent_id">
                 <option value="">None</option>
                 {% for category in categories %}
-                    {% if category.id != category_id %}
-                    <option value="{{category.id}}" {{ 'selected' if category_parent_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
+                    {% if category.name != 'Uncategorized' %}
+                        {% if category.id != category_id %}
+                        <option value="{{category.id}}" {{ 'selected' if parent_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
 

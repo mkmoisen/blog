@@ -1,8 +1,9 @@
 import html2text
 import pymysql
 from blog.local_settings import MYSQL_DATABASE, MYSQL_HOST, MYSQL_PASSWORD, MYSQL_PORT, MYSQL_USERNAME
-from blog.models import User, Post, Comment, Wordpress
+from blog.models import User, Post, Comment, Wordpress, CategoryPost
 from blog import db, app
+from blog.views.home import get_uncategorized_id
 from collections import defaultdict, namedtuple
 from BeautifulSoup import BeautifulSoup
 import os
@@ -10,7 +11,11 @@ import requests
 from datetime import datetime
 import uuid
 import base64
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--no-image-download', action='store_true', dest='no_image_download', default=False)
+args = parser.parse_args()
 user = db.session.query(User).one()
 
 WpPost = namedtuple('WpPost', ('id', 'title', 'content', 'creation_date', 'last_modified_date', 'post_name', 'guid'))
@@ -25,6 +30,8 @@ comment_sql = 'select c.comment_post_id, c.comment_author, c.comment_author_emai
 
 seo_sql = 'select p.post_id, p.meta_value ' \
         "FROM wp_postmeta p WHERE meta_key = '_yoast_wpseo_metadesc'"
+
+uncategorized_id = get_uncategorized_id()
 
 def sql(sql):
     connection = pymysql.connect(host=MYSQL_HOST, user=MYSQL_USERNAME, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -90,12 +97,21 @@ for result in post_results:
 
     post = Post(user_id=user.id, title=title, content=content, url_name=wp_post.post_name,
                 description = title,
-                creation_date=wp_post.creation_date, last_modified_date=wp_post.last_modified_date, is_published=True)
+                creation_date=wp_post.creation_date, last_modified_date=wp_post.last_modified_date, is_published=True,
+                category_id=uncategorized_id)
+
 
     posts[wp_post.id] = post
 
 
 db.session.bulk_save_objects(posts.values(), return_defaults=True)
+
+category_posts = []
+for p in posts.values():
+    category_post = CategoryPost(post_id=p.id, category_id=uncategorized_id)
+    category_posts.append(category_post)
+
+db.session.bulk_save_objects(category_posts)
 
 # Download imagees to static folder
 s = datetime.now()
@@ -105,9 +121,9 @@ for image, redirect in images.iteritems():
         content = base64.b64decode(image.replace('data:image/png;base64,', ''))
         file_name = str(uuid.uuid4()) + '.png'
     else:
-
-        r = requests.get(image)
-        content = r.content
+        if not args.no_image_download:
+            r = requests.get(image)
+            content = r.content
         file_name = os.path.split(image)[1]
 
         wordpress_prefix = 'http://matthewmoisen.com/blog/'
@@ -117,9 +133,9 @@ for image, redirect in images.iteritems():
         wordpress = Wordpress(type='image', val=image_url, redirect=redirect)
         wordpresses.append(wordpress)
 
-
-    with open(os.path.join(app.config['UPLOAD_FOLDER'], file_name), 'wb') as f:
-        f.write(content)
+    if not args.no_image_download:
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], file_name), 'wb') as f:
+            f.write(content)
 e = datetime.now()
 
 print "time to save images: {}".format(e - s)

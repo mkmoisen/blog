@@ -2,7 +2,7 @@
 
 {% block meta %}
     <meta name="description" content="{{description}}"/>
-    <link rel="canonical" href="http://matthewmoisen.com/blog/{{url_name}}/">
+    <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/{{url_name}}/">
     <title>{{title}}</title>
 {% endblock %}
 
@@ -60,7 +60,8 @@
         </form>
         <hr>
         {% for comment in comments %}
-            <p>Name: {{comment.name}}</p>
+            <p>Name: {{comment.name}} </p>
+            <p>Creation Date: {{comment.creation_date}}</p>
             <p>{{comment.content}}</p>
             <hr/>
         {% endfor %}

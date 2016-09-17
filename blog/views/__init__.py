@@ -52,6 +52,13 @@ def page_not_found(error):
 def page_not_found(error):
     app.logger.debug("I AM 500 LOL")
     return render_template('500.html')
+
+@app.context_processor
+def inject_global_vars():
+    return {
+        'web_protocol': app.config['WEB_PROTOCOL']
+    }
+
 '''
 def try_except(func):
     @wraps(func)

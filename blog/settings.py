@@ -9,6 +9,7 @@ class Config(object):
     SECRET_KEY = os.urandom(32) # this will invalidate session each time good for debugging login stuff
     DATABASE = 'sqlite'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{}'.format(db)
+    WEB_PROTOCOL = 'http://'  # 'https://'
 
 try:
     from blog.local_settings import *

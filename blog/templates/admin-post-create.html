@@ -79,7 +79,6 @@ $(document).ready(function(){
 
             <h2>Main Category</h2>
             <select name="main_category_id">
-                <option value="">Uncategorized</option>
                 {% for category in categories %}
                 <option value="{{category.id}}" {{ 'selected' if main_category_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
                 {% endfor %}
@@ -88,8 +87,9 @@ $(document).ready(function(){
             <h2>Other Categories</h2>
             <select id="other-category-ids" name="other_category_ids" multiple>
                 {% for category in categories %}
-                <option value="{{category.id}}" {{ 'selected' if category.id in other_category_ids else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{category.name}}</option>
-
+                    {% if category.name != 'Uncategorized' %}
+                    <option value="{{category.id}}" {{ 'selected' if category.id in other_category_ids else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{category.name}}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
 
