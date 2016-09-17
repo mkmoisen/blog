@@ -21,6 +21,7 @@ import os
 from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal_column
 from BeautifulSoup import BeautifulSoup
+import requests
 
 def login_required(f):
     @wraps(f)
@@ -408,7 +409,7 @@ def admin_create():
 
     password = sha256_crypt.encrypt(password)
 
-    user = User(first_name=first_name, last_name=last_name, email=email, password=password)
+    user = User(first_name=first_name, last_name=last_name, email=email, password=password, is_admin=True)
     db.session.add(user)
     db.session.flush()
 
@@ -420,7 +421,9 @@ def admin_create():
     db.session.add(post)
 
     # Create Projects Category
-    category = Category(name='Projects')
+    uncategorized = Category(name='Uncategorized', creation_date=dt, last_modified_dt=dt)
+    projects = Category(name='Projects', creation_date=dt, last_modified_date=dt)
+    db.session.add(uncategorized)
     db.session.add(category)
 
     db.session.commit()
@@ -554,6 +557,7 @@ def admin_category_create(category_id=None):
             return redirect(url_for('admin_category_create'), categories=categories)
         else:
             flash("Category '{}' created successfully".format(name), 'success')
+            ping_google_sitemap()
 
         return redirect(url_for('admin_category_create'))
 
@@ -760,24 +764,9 @@ def admin_post_create(post_id=None):
                                     post_id, is_commenting_disabled)
             return redirect(url_for('admin_post_create'))
 
-        app.logger.debug("File in request.files? {}".format('file' in request.files))
-        app.logger.debug("request.files is {}".format(request.files))
-        if 'file' in request.files:
-            file = request.files['file']
 
-            app.logger.debug("filename is {}".format(file.filename))
+        ping_google_sitemap()
 
-            if file.filename is not None and file.filename != '':
-                file_name = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_name))
-
-                app.logger.debug("file was saved")
-
-                post.content += '\n' + '![{file_name}](/static/{file_name}) \n'.format(file_name=file_name)
-                db.session.add(post)
-                db.session.commit()
-
-                return redirect(url_for('admin_post_create', post_id=post.id))
 
         return redirect(url_for('post', post_id=post.id))
 
@@ -792,6 +781,8 @@ def mark_post_as_published(post_id):
         db.session.add(post)
         db.session.commit()
 
+    ping_google_sitemap()
+
     return redirect(url_for(last_url, post_id=post_id))
 
 @app.route('/admin/post/<int:post_id>/draft/', methods=['GET'])
@@ -805,6 +796,8 @@ def mark_post_as_draft(post_id):
         post.is_published = False
         db.session.add(post)
         db.session.commit()
+
+    ping_google_sitemap()
 
     return redirect(url_for(last_url, post_id=post_id))
 
@@ -1014,6 +1007,8 @@ def admin_comment_approve(comment_id):
     db.session.add(comment)
     db.session.commit()
 
+    ping_google_sitemap()
+
     return redirect(url_for('admin_comment_queue'))
 
 @app.route('/admin/comment/<int:comment_id>/delete/')
@@ -1081,4 +1076,89 @@ def spam_check(input_spam_check):
         resubmit = True
 
     return resubmit
+
+
+site_map_url_template = u'''<url>
+<loc>{url}</loc>
+<lastmod>{last_modified_time}</lastmod>
+<changefreq>{change_frequency}</changefreq>
+<priority>{priority}</priority>
+</url>
+'''
+
+
+def ping_google_sitemap():
+    app.logger.warn("Pinging google site map isn't activated yet")
+    return
+    url = 'https://www.google.com/ping?sitemap=https://matthewmoisen/sitemap.xml'
+    try:
+        r = requests.get(url)
+    except requests.RequestException as ex:
+        app.logger.exception("Couldn't ping google about site map: {}".format(ex.message))
+    else:
+        if r.status_code != 200:
+            app.logger.error("Failed to ping google sitemap:\n{}".format(r.text))
+
+def make_url(url, last_modified_time, change_frequency=u'weekly', priority=u'0.5'):
+    return site_map_url_template.format(
+        url=url, last_modified_time=last_modified_time, change_frequency=change_frequency, priority=priority
+    )
+
+from xml.etree import ElementTree
+@app.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    template = u'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{urls}
+</urlset>
+'''
+    PROTOCOL = 'http://'
+    DOMAIN = 'matthewmoisen.com/'
+    urls = []
+    DATE_FORMAT = '%Y-%m-%d'
+
+    no_max = datetime.now().strftime(DATE_FORMAT)
+
+    single_pages = [
+        ('home', db.session.query(func.max(Post.last_modified_date)).select_from(Post), u'', u'1.0'),
+        ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), u'category', u'0.5'),
+        ('project', db.session.query(func.max(Post.last_modified_date)).select_from(Post).join(Category) \
+            .filter(Category.name == 'Projects'), u'project', u'0.5'),
+        ('resume', db.session.query(func.max(Post.last_modified_date)).select_from(Post) \
+            .filter(Post.url_name == 'resume'), u'resume', u'0.5')
+    ]
+
+    for name, q, url_postfix, priority in single_pages:
+        try:
+            max = q.one()[0]
+        except SQLAlchemyError as ex:
+            app.logger.exception("Failed to create sitemap url for {}! {}".format(name, ex.message))
+        else:
+            app.logger.debug("max is {} type is {}".format(max, type(max)))
+            if max:
+                max = unicode(max.strftime(DATE_FORMAT))
+            else:
+                max = no_max
+            urls.append(make_url(u'{}{}{}/'.format(PROTOCOL, DOMAIN, url_postfix), last_modified_time=max,
+                                 priority=priority))
+
+    # Now do posts
+    for url_name, last_modified_date  in db.session.query(Post.url_name, Post.last_modified_date) \
+            .filter(Post.is_published == True):
+        url_postfix = unicode(url_name)
+        last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
+        urls.append(make_url(u'{}{}blog/{}/'.format(PROTOCOL, DOMAIN, url_postfix),
+                             last_modified_time=last_modified_time, priority=u'0.5'))
+
+    xml = template.format(urls=u''.join(urls))
+    print xml
+    try:
+        ElementTree.fromstring(str(xml))
+    except ElementTree.ParseError:
+        app.logger.critical("Sitemap XML IS INVALID!!!")
+        # Should probably email myself
+
+    return template.format(urls=u''.join(urls))
+
+
 
