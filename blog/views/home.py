@@ -803,10 +803,6 @@ def admin_post_create(post_id=None):
             post.is_published = False
 
         db.session.add(post)
-        import time
-        app.logger.debug("SLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP")
-        time.sleep(10)
-        raise Exception("NOOB")
 
         try:
             db.session.flush()

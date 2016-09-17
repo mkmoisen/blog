@@ -36,9 +36,6 @@ def try_except(api=False):
                 return jsonify({"error": ex.message}), 500
             except Exception as ex:
                 app.logger.exception("Exception in {}: {}".format(func.__name__, ex.message))
-                import time
-                app.logger.debug("SLEEPING IN TRY EXCEPT")
-                time.sleep(10)
                 db.session.rollback()
                 if not api:
                     abort(500)
