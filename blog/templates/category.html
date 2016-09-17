@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+{% block meta %}
+    <meta name="description" content="Matthew Moisen's blog categories"/>
+    <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/category/">
+    <title>{{title}}</title>
+{% endblock %}
 {% block css %}
     table, td, th {
         text-align: left;
@@ -44,7 +49,11 @@
         <tbody>
         {% for category in categories %}
             <tr>
-                <td><a href="/category/{{category.category_id}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                {% if category.url_name == 'projects' %}
+                <td><a href="/projects/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                {% else %}
+                <td><a href="/blog/category/{{category.url_name}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                {% endif %}
                 <td>{{category.count}}</td>
             </tr>
         {% endfor %}

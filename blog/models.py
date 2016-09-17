@@ -41,9 +41,11 @@ class Log(db.Model):
 class Category(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, unique=True)
+    url_name = db.Column(db.String, nullable=False, unique=True)
+    description = db.Column(db.String, nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('category.id', ondelete='SET NULL'), nullable=True)
-    creation_date = db.Column(db.DateTime, nullable=False, default=func.now())
-    last_modified_date = db.Column(db.DateTime, nullable=True, default=func.now())
+    creation_date = db.Column(db.DateTime, nullable=False, server_default=func.now())
+    last_modified_date = db.Column(db.DateTime, nullable=True, server_default=func.now(), onupdate=func.now())
     __table_args__ = (db.CheckConstraint("name <> ''"), {'sqlite_autoincrement': True})
 
     def __repr__(self):
@@ -60,8 +62,8 @@ class Post(BaseModel):
     category_id = db.Column(db.Integer, db.ForeignKey('category.id', ondelete='CASCADE'), nullable=False)
     content = db.Column(db.Unicode)
     is_published = db.Column(db.Boolean, default=False)
-    creation_date = db.Column(db.DateTime, nullable=False, default=func.now())
-    last_modified_date = db.Column(db.DateTime, nullable=True, default=func.now())
+    creation_date = db.Column(db.DateTime, nullable=False, server_default=func.now())
+    last_modified_date = db.Column(db.DateTime, nullable=True, server_default=func.now(), onupdate=func.now())
     is_commenting_disabled = db.Column(db.Boolean, nullable=False, default=False)
 
 
@@ -101,7 +103,7 @@ class Comment(BaseModel):
     email = db.Column(db.String, nullable=True)
     name = db.Column(db.String, nullable=False)
     content = db.Column(db.Unicode, nullable=False)
-    creation_date = db.Column(db.Date, nullable=False, default=func.now())
+    creation_date = db.Column(db.Date, nullable=False, server_default=func.now())
     is_approved = db.Column(db.Boolean, default=False, nullable=False)
     #parent_id = db.Column(db.Integer, db.ForeignKey('comment.id', ondelete='CASCADE'), nullable=True)
 

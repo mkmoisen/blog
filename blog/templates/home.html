@@ -22,8 +22,13 @@
         <tbody>
         {% for post in posts %}
             <tr>
+                {% if post.url_name == 'resume' %}
+                <td><a href="/resume/">{{post.title}}</a></td>
+                {% else %}
                 <td><a href="/blog/{{post.url_name}}/">{{post.title}}</a></td>
-                <td><a href="/category/{{post.category_id}}">{{post.category}}</a></td>
+                {% endif %}
+
+                <td><a href="/blog/category/{{post.category_url_name}}">{{post.category}}</a></td>
             </tr>
         {% endfor %}
         </tbody>

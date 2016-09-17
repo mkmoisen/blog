@@ -101,12 +101,19 @@ def home():
     '''
     Grab all published posts and display for user along with category
     '''
+    # TODO change this to inner join between Post and Category
+    posts = db.session.query(Post, Category).join(Category) \
+        .filter(Post.is_published == True) \
+        .order_by(Post.creation_date.desc())  \
+        .all()
+    """
     posts = db.session.query(Post, Category) \
         .outerjoin(CategoryPost, and_(Post.id == CategoryPost.post_id, Post.category_id == CategoryPost.category_id)) \
         .outerjoin(Category) \
         .filter(Post.is_published == True) \
         .order_by(Post.creation_date.desc())\
         .all()
+    """
 
     is_admin = check_admin_status()
 
@@ -116,6 +123,7 @@ def home():
             'post_id': p.id,
             'url_name': p.url_name,
             'category': c.name,
+            'category_url_name': c.url_name,
             'category_id': c.id
 
         }
@@ -175,7 +183,6 @@ def add_node(category, tree):
             return 1
     return 0
 '''
-
 
 
 def print_tree(tree, depth=0):
@@ -241,7 +248,7 @@ def find_ascendants(back, category):
 
 
 
-@app.route('/category/', methods=['GET'])
+@app.route('/blog/category/', methods=['GET'])
 @try_except()
 def category():
     '''
@@ -294,6 +301,7 @@ def category():
             'depth': depth,
             'name': category.name,
             'category_id': category.id,
+            'url_name': category.url_name,
             'count': category.count
         }
         for depth, category in iter_tree(tree)
@@ -310,7 +318,7 @@ def category():
 @try_except()
 def get_projects():
     category = db.session.query(Category).filter_by(name="Projects").one()
-    return category_posts(category.id)
+    return category_posts_by_name(category.url_name)
 
 
 @app.route('/resume/', methods=['GET'])
@@ -318,13 +326,28 @@ def get_projects():
 def resume():
     return get_post_by_name('resume')
 
-@app.route('/category/<int:category_id>/', methods=['GET'])
+"""
+@app.route('/blog/category/<int:category_id>/', methods=['GET'])
 @try_except()
 def category_posts(category_id):
+"""
+
+@app.route('/blog/category/<url_name>/', methods=['GET'])
+@try_except()
+def category_posts_by_name(url_name):
+
+
+    category = db.session.query(Category).filter_by(url_name=url_name).one()
+    category_id = category.id
+    #return category_posts(category_id)
+
+
     # Uncategorized have category_id of Null. Because strings cannot be passed, make sure to pass a 0 instead
 
-    category = db.session.query(Category).filter_by(id=category_id).one()
+    #category = db.session.query(Category).filter_by(id=category_id).one()
     category_name = category.name
+    category_url_name = category.url_name
+    category_description = category.description
 
     posts = db.session.query(Post).join(CategoryPost) \
         .filter(CategoryPost.category_id == category_id) \
@@ -337,13 +360,14 @@ def category_posts(category_id):
     posts = [
         {
             'title': p.title,
-            'post_id': p.id
+            'post_id': p.id,
+            'url_name': p.url_name,
         }
         for p in posts
     ]
 
     return render_template('category-posts.html', posts=posts, category_name=category_name, category_id=category_id,
-                           is_admin=is_admin)
+                           is_admin=is_admin, category_url_name=category_url_name, category_description=category_description)
 
 @app.route('/admin/', methods=['GET'])
 @try_except()
@@ -404,15 +428,21 @@ def admin_create():
     db.session.flush()
 
     # Create temporary Resume post
-    dt = datetime.now()
-    uncategorized = Category(name='Uncategorized', creation_date=dt, last_modified_date=dt)
-    projects = Category(name='Projects', creation_date=dt, last_modified_date=dt)
+    dt = datetime.utcnow()
+    uncategorized_description = "Matthew Moisen's uncategorized blog posts"
+    uncategorized = Category(name='Uncategorized', url_name='uncategorized',
+                             description=uncategorized_description)
+
+    # TODO Improve this description
+    projects_description = "Matthew Moisen's projects"
+    projects = Category(name='Projects', url_name='projects',
+                        description=projects_description)
     db.session.add(uncategorized)
     db.session.add(projects)
     db.session.flush()
 
     post = Post(user_id=user.id, title=u"Résumé", url_name='resume', description=u'Résumé for Matthew Moisen',
-                content=u'My Résumé', is_published=True, creation_date=dt, last_modified_date=dt,
+                content=u'My Résumé', is_published=True,
                 is_commenting_disabled=True, category_id=uncategorized.id)
     db.session.add(post)
     db.session.flush()
@@ -493,6 +523,8 @@ def get_categories(back=None):
         {
             'id': category.id,
             'name': category.name,
+            'url_name': category.url_name,
+            'description': category.description,
             'depth': depth
         }
         for depth, category in iter_tree(tree)
@@ -507,8 +539,10 @@ def get_categories(back=None):
 @login_required
 def admin_category_create(category_id=None):
     name = ''
-    parent_id = session.get('parent_id', None)
-    app.logger.debug("parent_id {}".format(parent_id))
+    parent_id = session.get('category_parent_id', None)
+    name = session.pop('category_url_name', '')
+    description = session.pop('category_description', '')
+    url_name = session.pop('category_url_name', '')
 
     categories = get_categories()
 
@@ -517,9 +551,13 @@ def admin_category_create(category_id=None):
             # This is for updates
             category = db.session.query(Category).filter_by(id=category_id).one()
             name = category.name
+            description = category.description
+            url_name = category.url_name
 
         return render_template('admin-category-create.html',
                                name=name,
+                               description=description,
+                               url_name=url_name,
                                category_id=category_id,
                                categories=categories,
                                parent_id=parent_id)
@@ -530,6 +568,8 @@ def admin_category_create(category_id=None):
         category_id = request.form['category_id']
         name = request.form['category_name']
         parent_id = request.form['category_parent_id']
+        url_name = request.form['category_url_name']
+        description = request.form['category_description']
         try:
             parent_id = int(parent_id)
         except ValueError:
@@ -548,19 +588,39 @@ def admin_category_create(category_id=None):
         category.name = name
         category.parent_id = parent_id
 
-        # This makes it easy to make a bunch of categories under a parent
-        session['parent_id'] = parent_id
+        if url_name == '':
+            url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', name)
+            url_name = ' '.join(url_name.split())
+            url_name = url_name.lower().replace(' ', '-')
+
+        if description == '':
+            description = 'Matthew Moisen''s commentary on {}'.format(category.name)
+
+        category.url_name = url_name
+        category.description = description
 
         db.session.add(category)
         try:
             db.session.commit()
         except IntegrityError as ex:
             flash(ex.message, 'error')
+            session['category_url_name'] = url_name
+            session['category_description'] = description
+            session['category_name'] = name
 
             return redirect(url_for('admin_category_create'))
         else:
             flash("Category '{}' created successfully".format(name), 'success')
             ping_google_sitemap()
+
+        # This makes it easy to make a bunch of categories under a parent
+        app.logger.debug("parent id is {} {}".format(parent_id, type(parent_id)))
+        app.logger.debug("category id is {} {}".format(category_id, type(category_id)))
+
+        if parent_id is None:
+            session['category_parent_id'] = category.id
+        else:
+            session['category_parent_id'] = parent_id
 
         return redirect(url_for('admin_category_create'))
 
@@ -699,7 +759,7 @@ def admin_post_create(post_id=None):
         if main_category_id != uncategorized_id and main_category_id not in other_category_ids:
             other_category_ids.append(main_category_id)
 
-        dt = datetime.now()
+        dt = datetime.utcnow()
         if post_id == '':
             # new post
             post = Post(creation_date=dt)  # title=title, content=content, creation_date=dt, last_modified_date=dt, category_id=category_id)
@@ -709,15 +769,18 @@ def admin_post_create(post_id=None):
         post.title = title
         # What if I want to legitimately use '\r\n' ?
         post.content = content.replace('\r\n', '\n')
-        post.last_modified_date = dt
+        #post.last_modified_date = dt
         post.category_id = main_category_id
         post.user_id = session['user_id']
         post.is_commenting_disabled = is_commenting_disabled
 
         if url_name == '':
+            app.logger.debug("Caught empty url name, changing it now..")
             url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', title)
             url_name = ' '.join(url_name.split())
             url_name = url_name.lower().replace(' ', '-')
+
+        app.logger.debug("url_name is now {}".format(url_name))
 
 
         if description == '':
@@ -726,6 +789,8 @@ def admin_post_create(post_id=None):
         post.description = description
 
         post.url_name = url_name
+
+        app.logger.debug("post.url_name is {}".format(post.url_name))
 
         if title == '' or content == '':
             admin_post_create_error('Title or content is empty', title, content, main_category_id, other_category_ids,
@@ -738,13 +803,22 @@ def admin_post_create(post_id=None):
             post.is_published = False
 
         db.session.add(post)
+        import time
+        app.logger.debug("SLEEEEEEEEEEEEEEEEEEEEEEEEEEEEEP")
+        time.sleep(10)
+        raise Exception("NOOB")
+
         try:
             db.session.flush()
+
         except SQLAlchemyError as ex:
+            db.session.rollback()
             app.logger.debug("ERROR {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled)
             return redirect(url_for('admin_post_create'))
+
+
 
         db.session.query(CategoryPost).filter_by(post_id=post.id).delete()
 
@@ -762,9 +836,13 @@ def admin_post_create(post_id=None):
         if category_posts:
             db.session.bulk_save_objects(category_posts)
 
+        # Now update last_modified_time for all categories associated with this post to reflect on the site-map.xml
+        db.session.query(Category).filter(Category.id.in_(all_category_ids)).update({'last_modified_date': dt}, synchronize_session=False)
+
         try:
             db.session.commit()
         except SQLAlchemyError as ex:
+            db.session.rollback()
             app.logger.debug("ERROR {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled)
@@ -875,11 +953,15 @@ def check_for_urls(text):
     # http://stackoverflow.com/a/6883094/1391717
     return re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
 
-@app.route('/post/<int:post_id>/comment/', methods=['POST'])
+# Does this need to change to /blog/<post_url_name>/comment/ ?
+# Should /comment/ be removed?? ya..
+@app.route('/blog/<url_name>/', methods=['POST'])
 @try_except()
-def post_comment(post_id):
+def post_comment(url_name):
 
-    post = db.session.query(Post).filter_by(id=post_id).one()
+
+    post = db.session.query(Post).filter_by(url_name=url_name).one()
+    post_id = post.id
 
     app.logger.debug("FORM IS {}".format(request.form))
     name = request.form['comment_name']
@@ -919,7 +1001,7 @@ def post_comment(post_id):
     soups = (BeautifulSoup(name), BeautifulSoup(email), BeautifulSoup(content))
     name, email, content = (''.join(soup.findAll(text=True)) for soup in soups)
 
-    creation_date = datetime.now()
+    creation_date = datetime.utcnow()
 
     comment = Comment(post_id=post_id, name=name, email=email, content=content, creation_date=creation_date)
     db.session.add(comment)
@@ -1027,6 +1109,25 @@ def admin_comment_delete(comment_id):
 
     return redirect(url_for('admin_comment_queue'))
 
+@app.route('/admin/log/', methods=['GET'])
+@try_except()
+@login_required
+def admin_log():
+    logs = db.session.query(Log)
+
+    logs = [
+        {
+            'id': log.id,
+            'logger': log.logger,
+            'level': log.level,
+            'trace': log.trace,
+            'message': log.message,
+            'creation_date': log.creation_date
+        }
+        for log in logs
+    ]
+
+    return render_template('admin-log.html', logs=logs)
 
 number_words = {
     1: 'one',
@@ -1123,15 +1224,15 @@ def sitemap():
     urls = []
     DATE_FORMAT = '%Y-%m-%d'
 
-    no_max = datetime.now().strftime(DATE_FORMAT)
+    no_max = datetime.utcnow().strftime(DATE_FORMAT)
 
     single_pages = [
         ('home', db.session.query(func.max(Post.last_modified_date)).select_from(Post), u'', u'1.0'),
-        ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), u'category', u'0.5'),
+        ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), u'blog/category/', u'0.5'),
         ('project', db.session.query(func.max(Post.last_modified_date)).select_from(Post).join(Category) \
-            .filter(Category.name == 'Projects'), u'project', u'0.5'),
+            .filter(Category.name == 'Projects'), u'project/', u'0.5'),
         ('resume', db.session.query(func.max(Post.last_modified_date)).select_from(Post) \
-            .filter(Post.url_name == 'resume'), u'resume', u'0.5')
+            .filter(Post.url_name == 'resume'), u'resume/', u'0.5')
     ]
 
     for name, q, url_postfix, priority in single_pages:
@@ -1145,7 +1246,7 @@ def sitemap():
                 max = unicode(max.strftime(DATE_FORMAT))
             else:
                 max = no_max
-            urls.append(make_url(u'{}{}{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix), last_modified_time=max,
+            urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix), last_modified_time=max,
                                  priority=priority))
 
     # Now do posts
@@ -1154,6 +1255,13 @@ def sitemap():
         url_postfix = unicode(url_name)
         last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
         urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
+                             last_modified_time=last_modified_time, priority=u'0.5'))
+
+    # Now to categories
+    for url_name, last_modified_date in db.session.query(Category.url_name, Category.last_modified_date):
+        url_postfix = unicode(url_name)
+        last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
+        urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
                              last_modified_time=last_modified_time, priority=u'0.5'))
 
     xml = template.format(urls=u''.join(urls))
@@ -1165,6 +1273,3 @@ def sitemap():
         # Should probably email myself
 
     return template.format(urls=u''.join(urls))
-
-
-

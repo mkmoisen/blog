@@ -2,7 +2,11 @@
 
 {% block meta %}
     <meta name="description" content="{{description}}"/>
-    <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/{{url_name}}/">
+    {% if url_name == 'resume' %}
+        <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/{{url_name}}/">
+    {% else %}
+        <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/{{url_name}}/">
+    {% endif %}
     <title>{{title}}</title>
 {% endblock %}
 
@@ -46,7 +50,7 @@
                     </ul>
                 {% endif %}
             {% endwith %}
-        <form action="/post/{{post_id}}/comment/" method="POST">
+        <form action="/blog/{{url_name}}/" method="POST">
             <p>Name <input name="comment_name" value="{{comment_name}}" type="text" placeholder="Name is required and will be displayed"></p>
 
             <p>Email <input name="comment_email" value="{{comment_email}}" type="text" placeholder="Email is optional and is NOT displayed"></p>

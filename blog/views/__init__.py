@@ -36,6 +36,9 @@ def try_except(api=False):
                 return jsonify({"error": ex.message}), 500
             except Exception as ex:
                 app.logger.exception("Exception in {}: {}".format(func.__name__, ex.message))
+                import time
+                app.logger.debug("SLEEPING IN TRY EXCEPT")
+                time.sleep(10)
                 db.session.rollback()
                 if not api:
                     abort(500)
@@ -49,7 +52,7 @@ def page_not_found(error):
     return render_template('404.html')
 
 @app.errorhandler(500)
-def page_not_found(error):
+def server_error(error):
     app.logger.debug("I AM 500 LOL")
     return render_template('500.html')
 

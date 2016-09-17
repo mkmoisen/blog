@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Matthew Moisen Admin Log</title>
+{% endblock %}
+{% block css %}
+    body {
+        max-width: 1000px;
+    }
+    table {
+        width: 100%;
+    }
+{% endblock %}
+{% block content %}
+    <header> <h1>Logs</h1></header>
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Logger</th>
+                <th>Level</th>
+                <th>Creation Date</th>
+                <th>Message</th>
+                <th>Trace</th>
+
+            </tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td>{{log.id}}</a></td>
+                <td>{{log.logger}}</a></td>
+                <td>{{log.level}}</a></td>
+                <td>{{log.creation_date}}</a></td>
+                <td>{{log.message}}</a></td>
+                <td>{{log.trace}}</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock %}
