@@ -46,12 +46,12 @@ def try_except(api=False):
 @app.errorhandler(404)
 def page_not_found(error):
     app.logger.debug("I AM 404 LOL")
-    return render_template('404.html')
+    return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def server_error(error):
     app.logger.debug("I AM 500 LOL")
-    return render_template('500.html')
+    return render_template('500.html'), 500
 
 @app.context_processor
 def inject_global_vars():

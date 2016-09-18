@@ -1251,17 +1251,21 @@ def sitemap():
     # Now do posts
     for url_name, last_modified_date  in db.session.query(Post.url_name, Post.last_modified_date) \
             .filter(Post.is_published == True):
-        url_postfix = unicode(url_name)
-        last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-        urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
-                             last_modified_time=last_modified_time, priority=u'0.5'))
+        if url_name != 'resume':
+            # Prevent resume from given a url of /blog/resume and use the /resume/ instead
+            url_postfix = unicode(url_name)
+            last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
+            urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
+                                 last_modified_time=last_modified_time, priority=u'0.5'))
 
     # Now to categories
     for url_name, last_modified_date in db.session.query(Category.url_name, Category.last_modified_date):
-        url_postfix = unicode(url_name)
-        last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-        urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
-                             last_modified_time=last_modified_time, priority=u'0.5'))
+        if url_name != 'projects':
+            # Prevent projects from given a url of /blog/category/projects and use the /projects/ instead
+            url_postfix = unicode(url_name)
+            last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
+            urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
+                                 last_modified_time=last_modified_time, priority=u'0.5'))
 
     xml = template.format(urls=u''.join(urls))
     print xml
