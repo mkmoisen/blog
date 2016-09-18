@@ -41,7 +41,7 @@ def get_uncategorized_id():
 @try_except()
 def blog():
     if 'p' not in request.args:
-        return redirect(url_for('/home/'))
+        return home()
 
     # This must be a old wordpress URL
     wordpress = db.session.query(Wordpress).filter_by(type='guid').filter_by(val=request.args['p']).one()
