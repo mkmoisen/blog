@@ -43,8 +43,6 @@ def blog():
     if 'p' not in request.args:
         return redirect(url_for('/home/'))
 
-    app.logger.debug('arg is {}'.format(request.args['p']))
-
     # This must be a old wordpress URL
     wordpress = db.session.query(Wordpress).filter_by(type='guid').filter_by(val=request.args['p']).one()
     #p = db.session.query(Post).filter_by(wordpress_guid=request.args['p']).one()
@@ -55,10 +53,7 @@ def blog():
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
-    app.logger.debug("in wordpress_full_url")
     wordpress_url = first_cat + '/' + second_cat + '/' + url_name + '/'
-
-    app.logger.debug("wordpress_url is {}".format(wordpress_url))
 
     #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
     #url_name = p.url_name
@@ -71,8 +66,6 @@ def wordpress_full_url(first_cat, second_cat, url_name):
 @try_except()
 def wordpress_images(year, month, path):
     image_url = 'wp-content/uploads/{}/{}/{}'.format(year, month, path)
-
-    app.logger.debug(image_url)
 
     wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
     url_name = wordpress.redirect
