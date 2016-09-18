@@ -58,6 +58,7 @@ def inject_global_vars():
     return {
         'web_protocol': app.config['WEB_PROTOCOL'],
         'domain': app.config['DOMAIN'],
+        'google_site_verification': app.config['GOOGLE_SITE_VERIFICATION'],
     }
 
 '''

@@ -13,6 +13,7 @@ class Config(object):
     ENABLE_GOOGLE_SITEMAP_PING = False
     PREFERRED_URL_SCHEME = 'http'
     DOMAIN = 'localhost:5000/'
+    GOOGLE_SITE_VERIFICATION = None
 
 class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
@@ -20,6 +21,8 @@ class ProductionConfig(Config):
     ENABLE_GOOGLE_SITEMAP_PING = True
     WEB_PROTOCOL = 'https://'
     DOMAIN = 'matthewmoisen.com/'
+    GOOGLE_SITE_VERIFICATION = 'uV8BaAWi7Oqilx1jL9gnMB1l4RQR154v3tunwZKvCpQ'
+
 
 server_config = Config
 
