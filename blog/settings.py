@@ -9,7 +9,17 @@ class Config(object):
     SECRET_KEY = os.urandom(32) # this will invalidate session each time good for debugging login stuff
     DATABASE = 'sqlite'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{}'.format(db)
-    WEB_PROTOCOL = 'http://'  # 'https://'
+    WEB_PROTOCOL = 'http://'  # 'http://'
+    ENABLE_GOOGLE_SITEMAP_PING = False
+    PREFERRED_URL_SCHEME = 'http'
+
+class ProductionConfig(Config):
+    SESSION_COOKIE_SECURE = True
+    PREFERRED_URL_SCHEME = 'https'
+    ENABLE_GOOGLE_SITEMAP_PING = True
+    WEB_PROTOCOL = 'https://'
+
+server_config = Config
 
 try:
     from blog.local_settings import *

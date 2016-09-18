@@ -2,7 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
-from settings import Config
+from settings import server_config
 import logging
 import os
 import traceback
@@ -10,7 +10,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config.from_object(server_config)
 app.secret_key = app.config['SECRET_KEY']
 app.config['DATABASE'] = app.config['DATABASE']
 

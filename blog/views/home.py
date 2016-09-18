@@ -1191,8 +1191,13 @@ site_map_url_template = u'''<url>
 
 
 def ping_google_sitemap():
-    app.logger.warn("Pinging google site map isn't activated yet")
-    return
+    if not app.config['ENABLE_GOOGLE_SITEMAP_PING']:
+        app.logger.warn("Pinging google site map isn't activated")
+        return
+    if app.config['WEB_PROTOCOL'] == 'http://':
+        app.logger.error("Google sitemap ping is on, but web protocol is http instead of https")
+        return
+
     url = 'https://www.google.com/ping?sitemap={}matthewmoisen/sitemap.xml'.format(app.config['WEB_PROTOCOL'])
     try:
         r = requests.get(url)
