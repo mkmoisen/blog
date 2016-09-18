@@ -12,12 +12,14 @@ class Config(object):
     WEB_PROTOCOL = 'http://'  # 'http://'
     ENABLE_GOOGLE_SITEMAP_PING = False
     PREFERRED_URL_SCHEME = 'http'
+    DOMAIN = 'localhost:5000/'
 
 class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     PREFERRED_URL_SCHEME = 'https'
     ENABLE_GOOGLE_SITEMAP_PING = True
     WEB_PROTOCOL = 'https://'
+    DOMAIN = 'matthewmoisen.com/'
 
 server_config = Config
 

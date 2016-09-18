@@ -56,7 +56,8 @@ def server_error(error):
 @app.context_processor
 def inject_global_vars():
     return {
-        'web_protocol': app.config['WEB_PROTOCOL']
+        'web_protocol': app.config['WEB_PROTOCOL'],
+        'domain': app.config['DOMAIN'],
     }
 
 '''

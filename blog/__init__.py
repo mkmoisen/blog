@@ -13,8 +13,8 @@ app = Flask(__name__)
 app.config.from_object(server_config)
 app.secret_key = app.config['SECRET_KEY']
 app.config['DATABASE'] = app.config['DATABASE']
-
-print "WTF ", app.config['SQLALCHEMY_DATABASE_URI']
+if not app.config['DOMAIN'].endswith('/'):
+    app.config['DOMAIN'] += '/'
 
 
 

@@ -3,9 +3,9 @@
 {% block meta %}
     <meta name="description" content="{{description}}"/>
     {% if url_name == 'resume' %}
-        <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/{{url_name}}/">
+        <link rel="canonical" href="{{web_protocol}}{{domain}}{{url_name}}/">
     {% else %}
-        <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/{{url_name}}/">
+        <link rel="canonical" href="{{web_protocol}}{{domain}}blog/{{url_name}}/">
     {% endif %}
     <title>{{title}}</title>
 {% endblock %}

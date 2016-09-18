@@ -2,9 +2,9 @@
 {% block meta %}
     <meta name="description" content="{{category_description}}"/>
     {% if category_url_name == 'projects' %}
-    <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/projects/">
+    <link rel="canonical" href="{{web_protocol}}{{domain}}projects/">
     {% else %}
-    <link rel="canonical" href="{{web_protocol}}matthewmoisen.com/blog/category/{{category_url_name}}/">
+    <link rel="canonical" href="{{web_protocol}}{{domain}}blog/category/{{category_url_name}}/">
     {% endif %}
     <title>{{title}}</title>
 {% endblock %}

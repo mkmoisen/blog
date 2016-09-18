@@ -1195,8 +1195,12 @@ def ping_google_sitemap():
     if app.config['WEB_PROTOCOL'] == 'http://':
         app.logger.error("Google sitemap ping is on, but web protocol is http instead of https")
         return
+    if 'localhost' in app.config['DOMAIN'] or '0.0.0.0' in app.config['DOMAIN']:
+        app.logger.error("Google sitemap ping is on, but domain is localhost")
 
-    url = 'https://www.google.com/ping?sitemap={}matthewmoisen/sitemap.xml'.format(app.config['WEB_PROTOCOL'])
+    url = 'https://www.google.com/ping?sitemap={}{}sitemap.xml'.format(
+        app.config['WEB_PROTOCOL'], app.config['DOMAIN']
+    )
     try:
         r = requests.get(url)
     except requests.RequestException as ex:
@@ -1219,7 +1223,6 @@ def sitemap():
 </urlset>
 '''
 
-    DOMAIN = 'matthewmoisen.com/'
     urls = []
     DATE_FORMAT = '%Y-%m-%d'
 
@@ -1228,8 +1231,8 @@ def sitemap():
     single_pages = [
         ('home', db.session.query(func.max(Post.last_modified_date)).select_from(Post), u'', u'1.0'),
         ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), u'blog/category/', u'0.5'),
-        ('project', db.session.query(func.max(Post.last_modified_date)).select_from(Post).join(Category) \
-            .filter(Category.name == 'Projects'), u'project/', u'0.5'),
+        ('projects', db.session.query(func.max(Post.last_modified_date)).select_from(Post).join(Category) \
+            .filter(Category.name == 'Projects'), u'projects/', u'0.5'),
         ('resume', db.session.query(func.max(Post.last_modified_date)).select_from(Post) \
             .filter(Post.url_name == 'resume'), u'resume/', u'0.5')
     ]
@@ -1245,7 +1248,7 @@ def sitemap():
                 max = unicode(max.strftime(DATE_FORMAT))
             else:
                 max = no_max
-            urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix), last_modified_time=max,
+            urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix), last_modified_time=max,
                                  priority=priority))
 
     # Now do posts
@@ -1255,7 +1258,7 @@ def sitemap():
             # Prevent resume from given a url of /blog/resume and use the /resume/ instead
             url_postfix = unicode(url_name)
             last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-            urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
+            urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
                                  last_modified_time=last_modified_time, priority=u'0.5'))
 
     # Now to categories
@@ -1264,7 +1267,7 @@ def sitemap():
             # Prevent projects from given a url of /blog/category/projects and use the /projects/ instead
             url_postfix = unicode(url_name)
             last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-            urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], DOMAIN, url_postfix),
+            urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
                                  last_modified_time=last_modified_time, priority=u'0.5'))
 
     xml = template.format(urls=u''.join(urls))

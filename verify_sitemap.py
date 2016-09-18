@@ -1,8 +1,9 @@
 from xml.etree import ElementTree
+from blog import app
 import requests
 from BeautifulSoup import BeautifulStoneSoup as Soup
 
-r = requests.get('http://localhost:5000/sitemap.xml')
+r = requests.get('{}{}sitemap.xml'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN']))
 
 soup = Soup(r.content)
 locs = soup.findAll('loc')
