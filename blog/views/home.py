@@ -457,6 +457,11 @@ def admin_create():
 
     return redirect(url_for('admin_login'))
 
+@app.route('/admin/logout/', methods=['GET'])
+def admin_logout():
+    session.clear()
+    return redirect(url_for('home'))
+
 @app.route('/admin/login/', methods=['GET', 'POST'])
 @try_except()
 def admin_login():
