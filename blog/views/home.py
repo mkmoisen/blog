@@ -245,28 +245,6 @@ def category():
     '''
     Returns a list of categories and the associated post count within each
     '''
-
-    '''
-    tree = []
-    categories = db.session.query(Category).order_by(Category.parent_id).all()
-    for category in categories:
-        print category.id, category.name, category.parent_id
-        add_node(category, tree)
-
-    print_tree(tree)
-
-    for depth, c in iter_tree(tree):
-        print '----' * depth + c.name, c.id
-
-    '''
-
-    categories = db.session.query(Category, func.count(1)) \
-            .outerjoin(CategoryPost) \
-            .outerjoin(Post) \
-            .filter(Post.is_published == True) \
-            .group_by(Category.name) \
-            .order_by(Category.parent_id)
-
     categories = db.session.query(Category, func.count(1)) \
         .select_from(Post).outerjoin(CategoryPost).outerjoin(Category) \
         .filter(Post.is_published == True) \
@@ -276,6 +254,7 @@ def category():
     tree = []
     for category, count in categories:
         if category is not None:
+            add_node(category, tree)
             category.count = count
 
     print_tree(tree)
