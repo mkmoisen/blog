@@ -43,6 +43,7 @@ def blog():
     if 'p' not in request.args:
         return home()
 
+    app.logger.warn("Wordpress on path {}".format(request.path))
     # This must be a old wordpress URL
     wordpress = db.session.query(Wordpress).filter_by(type='guid').filter_by(val=request.args['p']).one()
     #p = db.session.query(Post).filter_by(wordpress_guid=request.args['p']).one()
@@ -53,6 +54,7 @@ def blog():
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
+    app.logger.warn("Wordpress on path {}".format(request.path))
     wordpress_url = first_cat + u'/' + second_cat + u'/' + url_name + u'/'
 
     #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
@@ -65,12 +67,11 @@ def wordpress_full_url(first_cat, second_cat, url_name):
 @app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
 @try_except()
 def wordpress_images(year, month, path):
+    app.logger.warn("Wordpress on path {}".format(request.path))
     image_url = u'wp-content/uploads/{}/{}/{}'.format(year, month, path)
 
     wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
     url_name = wordpress.redirect
-
-    app.logger.debug(redirect)
 
     return redirect(url_name, 301)
 
@@ -81,9 +82,6 @@ def wordpress_images(year, month, path):
 def get_post_by_name(url_name):
     p = db.session.query(Post).filter_by(url_name=url_name).one()
     return post(p.id)
-
-from sqlalchemy import and_
-
 
 
 @app.route('/', methods=['GET'])
@@ -279,12 +277,8 @@ def category():
     for category, count in categories:
         if category is not None:
             category.count = count
-            app.logger.debug(category)
-            app.logger.debug("DID IT WORK LOL {}".format(add_node(category, tree)))
 
     print_tree(tree)
-
-    app.logger.debug(tree)
 
     for depth, cat in iter_tree(tree):
         print cat
@@ -299,8 +293,6 @@ def category():
         }
         for depth, category in iter_tree(tree)
     ]
-
-    app.logger.debug("Categories is {}".format(categories))
 
     is_admin = check_admin_status()
 
@@ -485,11 +477,13 @@ def admin_login():
         try:
             user = db.session.query(User).filter_by(email=email).one()
         except NoResultFound:
-            app.logger.debug("No user found with this email {}".format(email))
+            app.logger.warn("Failed log in attempt with email {}".format(email))
             resubmit = True
         else:
             resubmit = not sha256_crypt.verify(password, user.password)
             app.logger.debug("Verify was {}".format(resubmit))
+            if resubmit:
+                app.logger.warn("Failed log in attempt with email {}".format(email))
 
     if resubmit:
         session['logged_in'] = False
@@ -561,8 +555,6 @@ def admin_category_create(category_id=None):
                                parent_id=parent_id)
 
     elif request.method == 'POST':
-        app.logger.debug("FORM IS {}".format(request.form))
-
         category_id = request.form['category_id']
         name = request.form['category_name']
         parent_id = request.form['category_parent_id']
@@ -611,10 +603,6 @@ def admin_category_create(category_id=None):
             flash("Category '{}' created successfully".format(name), 'success')
             ping_google_sitemap()
 
-        # This makes it easy to make a bunch of categories under a parent
-        app.logger.debug("parent id is {} {}".format(parent_id, type(parent_id)))
-        app.logger.debug("category id is {} {}".format(category_id, type(category_id)))
-
         if parent_id is None:
             session['category_parent_id'] = category.id
         else:
@@ -628,14 +616,11 @@ def admin_category_create(category_id=None):
 @try_except(api=True)
 @login_required
 def upload_image():
-    app.logger.debug(request.files)
     if not request.files:
         raise UserError("File is empty")
 
-
     file = request.files['file']
 
-    app.logger.debug("filename is {}".format(file.filename))
 
     if file.filename is None or file.filename == '':
         raise UserError("Filename is none or empty")
@@ -674,11 +659,6 @@ def admin_post_create(post_id=None):
         session['post_id'] = post_id
         session['is_commenting_disabled'] = is_commenting_disabled
 
-    app.logger.debug("wtf {}".format(request.args))
-
-    #main_category_id = request.args.get('main_category_id')
-    #main_category_id = int(main_category_id)
-
     title = session.pop('title', '')
     content = session.pop('content', '')
     main_category_id = session.pop('main_category_id', '')
@@ -708,9 +688,6 @@ def admin_post_create(post_id=None):
             # New
             main_category_id = get_uncategorized_id()
 
-        app.logger.debug("main category id {} {}".format(main_category_id, type(main_category_id)))
-        app.logger.debug("other_category_ids id {} {}".format(other_category_ids, type(other_category_ids)))
-
         return render_template('admin-post-create.html',
                                title=title,
                                content=content,
@@ -723,8 +700,6 @@ def admin_post_create(post_id=None):
                                is_commenting_disabled=is_commenting_disabled)
 
     elif request.method == 'POST':
-        app.logger.debug("I AM POST")
-        app.logger.debug("FORM IS {}".format(request.form))
         post_id = request.form['post_id']
         title = request.form['post_title']
         content = request.form['post_content']
@@ -737,16 +712,12 @@ def admin_post_create(post_id=None):
         submit = request.form['submit']
         is_commenting_disabled = True if 'is_commenting_disabled' in request.form else False
 
-        app.logger.debug("other_category_ids is {}".format(other_category_ids))
-
         # Category can be null for an uncategorized post
         # not any more ...
         uncategorized_id = get_uncategorized_id()
         main_category_id = int(main_category_id)
 
         other_category_ids = map(int, other_category_ids)
-
-        app.logger.debug("other_category_ids is {}".format(other_category_ids))
 
         # If user forgot to select a main category id, pick the first one from other categories
         if other_category_ids and main_category_id == uncategorized_id:
@@ -773,13 +744,9 @@ def admin_post_create(post_id=None):
         post.is_commenting_disabled = is_commenting_disabled
 
         if url_name == '':
-            app.logger.debug("Caught empty url name, changing it now..")
             url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', title)
             url_name = ' '.join(url_name.split())
             url_name = url_name.lower().replace(' ', '-')
-
-        app.logger.debug("url_name is now {}".format(url_name))
-
 
         if description == '':
             description = title.capitalize()
@@ -787,8 +754,6 @@ def admin_post_create(post_id=None):
         post.description = description
 
         post.url_name = url_name
-
-        app.logger.debug("post.url_name is {}".format(post.url_name))
 
         if title == '' or content == '':
             admin_post_create_error('Title or content is empty', title, content, main_category_id, other_category_ids,
@@ -807,11 +772,10 @@ def admin_post_create(post_id=None):
 
         except SQLAlchemyError as ex:
             db.session.rollback()
-            app.logger.debug("ERROR {}".format(ex.message))
+            app.logger.exception("Error saving post {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled)
             return redirect(url_for('admin_post_create'))
-
 
 
         db.session.query(CategoryPost).filter_by(post_id=post.id).delete()
@@ -837,7 +801,7 @@ def admin_post_create(post_id=None):
             db.session.commit()
         except SQLAlchemyError as ex:
             db.session.rollback()
-            app.logger.debug("ERROR {}".format(ex.message))
+            app.logger.exception("Error saving Post {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled)
             return redirect(url_for('admin_post_create'))
@@ -957,7 +921,6 @@ def post_comment(url_name):
     post = db.session.query(Post).filter_by(url_name=url_name).one()
     post_id = post.id
 
-    app.logger.debug("FORM IS {}".format(request.form))
     name = request.form['comment_name']
     email = request.form['comment_email']
     content = request.form['comment_content']
@@ -1039,8 +1002,6 @@ def admin_comment(comment_id):
                                content=content,
                                comment_id=comment_id)
 
-    app.logger.debug("FORM IS {}".format(request.form))
-
     name = request.form['comment_name']
     email = request.form['comment_email']
     content = request.form['comment_content']
@@ -1116,6 +1077,10 @@ def admin_log():
             'level': log.level,
             'trace': log.trace,
             'message': log.message,
+            'path': log.path,
+            'method': log.method,
+            'ip': log.ip,
+            'is_admin': log.is_admin,
             'creation_date': log.creation_date
         }
         for log in logs
@@ -1161,18 +1126,18 @@ def spam_check(input_spam_check):
     try:
         input_spam_check = int(input_spam_check)
     except ValueError as ex:
+        app.logger.warn("User entered a string or empty in spam check")
         flash("Enter a number, not a string, in humanity check", 'error')
         resubmit = True
 
     if not resubmit and 'spam_check' not in session:
-        app.logger.debug("spam_check not in session")
+        app.logger.warn("spam_check was not in session")
         flash("Please try humanity check again", 'error')
         resubmit = True
 
     original_spam_check = session.pop('spam_check')
-    app.logger.debug("original_spam_check is {}".format(original_spam_check))
     if not resubmit and not original_spam_check == input_spam_check:
-        app.logger.debug("spam check differs")
+        app.logger.warn("Spam check failed")
         flash("Please try humanity check again", 'error')
         resubmit = True
 
@@ -1204,10 +1169,10 @@ def ping_google_sitemap():
     try:
         r = requests.get(url)
     except requests.RequestException as ex:
-        app.logger.exception("Couldn't ping google about site map: {}".format(ex.message))
+        app.logger.exception("Couldn't ping google about site map: {}, url used was {}".format(ex.message, url))
     else:
         if r.status_code != 200:
-            app.logger.error("Failed to ping google sitemap:\n{}".format(r.text))
+            app.logger.error("Failed to ping google sitemap:\n{}\n\nurl was {}".format(r.text, url))
 
 def make_url(url, last_modified_time, change_frequency=u'weekly', priority=u'0.5'):
     return site_map_url_template.format(
@@ -1243,7 +1208,6 @@ def sitemap():
         except SQLAlchemyError as ex:
             app.logger.exception("Failed to create sitemap url for {}! {}".format(name, ex.message))
         else:
-            app.logger.debug("max is {} type is {}".format(max, type(max)))
             if max:
                 max = unicode(max.strftime(DATE_FORMAT))
             else:
@@ -1276,6 +1240,6 @@ def sitemap():
         ElementTree.fromstring(str(xml))
     except ElementTree.ParseError:
         app.logger.critical("Sitemap XML IS INVALID!!!")
-        # Should probably email myself
+        # TODO Should probably email myself
 
     return template.format(urls=u''.join(urls))

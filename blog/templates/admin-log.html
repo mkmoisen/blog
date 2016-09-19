@@ -4,7 +4,7 @@
 {% endblock %}
 {% block css %}
     body {
-        max-width: 1000px;
+        max-width: 100%;
     }
     table {
         width: 100%;
@@ -15,11 +15,13 @@
     <table>
         <thead>
             <tr>
-                <th>Id</th>
-                <th>Logger</th>
-                <th>Level</th>
                 <th>Creation Date</th>
+                <th>Level</th>
                 <th>Message</th>
+                <th>Path</th>
+                <th>Method</th>
+                <th>IP</th>
+                <th>Is Admin</th>
                 <th>Trace</th>
 
             </tr>
@@ -27,11 +29,13 @@
         <tbody>
         {% for log in logs %}
             <tr>
-                <td>{{log.id}}</a></td>
-                <td>{{log.logger}}</a></td>
-                <td>{{log.level}}</a></td>
                 <td>{{log.creation_date}}</a></td>
+                <td>{{log.level}}</a></td>
                 <td>{{log.message}}</a></td>
+                <td>{{log.path}}</a></td>
+                <td>{{log.method}}</a></td>
+                <td>{{log.ip}}</a></td>
+                <td>{{log.is_admin}}</a></td>
                 <td>{{log.trace}}</a></td>
             </tr>
         {% endfor %}

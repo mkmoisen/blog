@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
@@ -39,12 +39,25 @@ class SQLAlchemyHandler(logging.Handler):
         exc = record.__dict__['exc_info']
         if exc:
             trace = traceback.format_exc(exc)
+
+        path = request.path
+        method = request.method
+        ip = request.remote_addr
+        is_admin = False
+        if session and session.get('is_admin', False):
+            is_admin = True
+
         log = Log(logger=record.__dict__['name'],
                   level=record.__dict__['levelname'],
                   trace=trace,
-                  message=record.__dict__['msg'])
+                  message=record.__dict__['msg'],
+                  path=path,
+                  method=method,
+                  ip=ip,
+                  is_admin=is_admin
+        )
         db.session.add(log)
-        #db.session.commit()
+        db.session.commit()
 
 db_handler = SQLAlchemyHandler()
 db_handler.setLevel(logging.WARN)

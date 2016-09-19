@@ -28,13 +28,11 @@ class Log(db.Model):
     level = db.Column(db.String)
     trace = db.Column(db.String)
     message = db.Column(db.String)
-    creation_date = db.Column(db.DateTime, nullable=False, default=func.now())
-
-    def __init__(self, logger, level, trace, message):
-        self.logger = logger
-        self.level = level
-        self.trace = trace
-        self.message = message
+    path = db.Column(db.String)
+    method = db.Column(db.String)
+    ip = db.Column(db.String)
+    is_admin = db.Column(db.String)
+    creation_date = db.Column(db.DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = ({'sqlite_autoincrement': True},)
 
