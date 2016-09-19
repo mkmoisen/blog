@@ -1,12 +1,8 @@
 {% extends "base.html" %}
 
 {% block meta %}
-    <meta name="description" content="{{description}}"/>
-    {% if url_name == 'resume' %}
-        <link rel="canonical" href="{{web_protocol}}{{domain}}{{url_name}}/">
-    {% else %}
-        <link rel="canonical" href="{{web_protocol}}{{domain}}blog/{{url_name}}/">
-    {% endif %}
+
+     <link rel="canonical" href="{{canonical_url}}">
     <title>{{title}}</title>
 {% endblock %}
 

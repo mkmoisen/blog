@@ -294,17 +294,29 @@ def category():
         for depth, category in iter_tree(tree)
     ]
 
+    app.logger.debug("categories is")
+    app.logger.debug(categories)
+
     is_admin = check_admin_status()
 
 
     return render_template('category.html', categories=categories, is_admin=is_admin)
 
+def _get_project_category():
+    return db.session.query(Category).filter_by(name="Projects").one()
+
 @app.route("/projects/", methods=['GET'])
 @try_except()
 def get_projects():
-    category = db.session.query(Category).filter_by(name="Projects").one()
+    category = _get_project_category()
     return category_posts_by_name(category.url_name)
 
+@app.route('/projects/<url_name>/', methods=['GET'])
+def get_project_post(url_name):
+    post = db.session.query(Post).join(Category).filter(Category.name == 'Projects').filter(Post.url_name == url_name) \
+        .one()
+
+    return get_post_by_name(post.url_name)
 
 @app.route('/resume/', methods=['GET'])
 @try_except()
@@ -858,6 +870,9 @@ def post(post_id):
         if not is_admin:
             abort(404)
 
+    category_id = post.category_id
+
+
     title = post.title
     # markdown should be applied when comment is created
     content = markdown.markdown(post.content)
@@ -866,6 +881,16 @@ def post(post_id):
     url_name = post.url_name
     description = post.description
     is_commenting_disabled = post.is_commenting_disabled
+
+    canonical_url = '{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'])
+    if url_name == 'resume':
+        canonical_url += 'resume/'
+    else:
+        project_category = _get_project_category()
+        if category_id == project_category.id:
+            canonical_url += 'projects/{}/'.format(url_name)
+        else:
+            canonical_url += 'blog/{}/'.format(url_name)
 
 
     comment_name = session.pop('comment_name', '')
@@ -891,6 +916,7 @@ def post(post_id):
 
     return render_template('post.html',
                            is_admin=is_admin,
+                           canonical_url=canonical_url,
                            title=title,
                            content=content,
                            post_id=post_id,

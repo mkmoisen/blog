@@ -26,7 +26,12 @@
                 {% if post.url_name == 'resume' %}
                 <td><a href="/resume/">{{post.title}}</a></td>
                 {% else %}
-                <td><a href="/blog/{{post.url_name}}/">{{post.title}}</a></td>
+                    {% if post.category == 'Projects' %}
+                    <td><a href="/projects/{{post.url_name}}/">{{post.title}}</a></td>
+                    {% else %}
+                    <td><a href="/blog/{{post.url_name}}/">{{post.title}}</a></td>
+                    {% endif %}
+
                 {% endif %}
 
                 <td><a href="/blog/category/{{post.category_url_name}}">{{post.category}}</a></td>
