@@ -333,11 +333,20 @@ def category_posts_by_name(url_name):
 
     is_admin = check_admin_status()
 
+    project_category = _get_project_category()
+    def make_url(post):
+        if post.url_name == 'resume':
+            return '/resume/'
+        if post.category_id == project_category.id:
+            return '/projects/{}/'.format(post.url_name)
+        return '/blog/{}/'.format(post.url_name)
+
+
     posts = [
         {
             'title': p.title,
             'post_id': p.id,
-            'url_name': p.url_name,
+            'url': make_url(p),
         }
         for p in posts
     ]
