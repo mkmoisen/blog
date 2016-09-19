@@ -53,7 +53,7 @@ def blog():
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
-    wordpress_url = first_cat + '/' + second_cat + '/' + url_name + '/'
+    wordpress_url = first_cat + u'/' + second_cat + u'/' + url_name + u'/'
 
     #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
     #url_name = p.url_name
@@ -65,7 +65,7 @@ def wordpress_full_url(first_cat, second_cat, url_name):
 @app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
 @try_except()
 def wordpress_images(year, month, path):
-    image_url = 'wp-content/uploads/{}/{}/{}'.format(year, month, path)
+    image_url = u'wp-content/uploads/{}/{}/{}'.format(year, month, path)
 
     wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
     url_name = wordpress.redirect
