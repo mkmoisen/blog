@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block css %}
+
     #post-content {
         width: 650px;
         height: 600px;
@@ -9,6 +10,14 @@
     }
     #other-category-ids {
         height:200px;
+    }
+
+    #left {
+        width: 50%;
+        float: left;
+    }
+    #right {
+        margin-left: 50%;
     }
 
 
@@ -57,6 +66,32 @@ $(document).ready(function(){
                 }
             });
         });
+
+        $('#post-content').bind('input propertychange', (function() {
+            var content = {"content": this.value};
+            $.ajax({
+                type: 'POST',
+                url: '/api/preview-post/',
+                data: JSON.stringify(content),
+                contentType: 'application/json',
+                cache: false,
+                processData: false,
+                async: false,
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Success!');
+                    console.log(data);
+
+                    $('#preview').html(data['content']);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    var status = jqXHR.status;
+                    var responseJSON = jqXHR.responseJSON;
+                    console.log(status);
+                    console.log(responseJSON);
+                }
+            });
+        }));
 });
 </script>
 {% endblock %}
@@ -74,53 +109,58 @@ $(document).ready(function(){
         {% endwith %}
 
 
-        <form action="/admin/post/new/" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="post_id" value="{{post_id}}">
+                <form action="/admin/post/new/" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="post_id" value="{{post_id}}">
 
-            <h2>Main Category</h2>
-            <select name="main_category_id">
-                {% for category in categories %}
-                <option value="{{category.id}}" {{ 'selected' if main_category_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
-                {% endfor %}
-            </select>
+                    <h2>Main Category</h2>
+                    <select name="main_category_id">
+                        {% for category in categories %}
+                        <option value="{{category.id}}" {{ 'selected' if main_category_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
 
-            <h2>Other Categories</h2>
-            <select id="other-category-ids" name="other_category_ids" multiple>
-                {% for category in categories %}
-                    {% if category.name != 'Uncategorized' %}
-                    <option value="{{category.id}}" {{ 'selected' if category.id in other_category_ids else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{category.name}}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
+                    <h2>Other Categories</h2>
+                    <select id="other-category-ids" name="other_category_ids" multiple>
+                        {% for category in categories %}
+                            {% if category.name != 'Uncategorized' %}
+                            <option value="{{category.id}}" {{ 'selected' if category.id in other_category_ids else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{category.name}}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
 
-            <h2>Title</h2>
-            <input type="text" id="post-title" name="post_title" value="{{title}}">
+                    <h2>Title</h2>
+                    <input type="text" id="post-title" name="post_title" value="{{title}}">
 
-            <h2>Url Name</h2>
-            <input type="text" name="url_name" value="{{url_name}}" placeholder="Leave blank to use title as url name">
+                    <h2>Url Name</h2>
+                    <input type="text" name="url_name" value="{{url_name}}" placeholder="Leave blank to use title as url name">
 
-            <h2>Description</h2>
-            <input type="text" name="description" value="{{description}}" placeholder="Leave blank to use title as description">
+                    <h2>Description</h2>
+                    <input type="text" name="description" value="{{description}}" placeholder="Leave blank to use title as description">
 
-            <h2>Disable comments</h2>
-            <input type="checkbox" name="is_commenting_disabled" value="true" {{'checked' if is_commenting_disabled else '' }}>
+                    <h2>Disable comments</h2>
+                    <input type="checkbox" name="is_commenting_disabled" value="true" {{'checked' if is_commenting_disabled else '' }}>
 
-            <h2>Content</h2>
-            <textarea id="post-content" name="post_content">{{content}}</textarea>
+                    <h2>Content</h2>
+                    <textarea id="post-content" name="post_content">{{content}}</textarea>
+
+                    <h2>Preview</h2>
+                    <div id="preview">{{markdown|safe}}</div>
+
+                    <button type="submit" name="submit" value="publish">Publish Post</button>
+                    <button type="submit" name="submit" value="draft">Save as Draft</button>
+                </form>
 
 
-            <button type="submit" name="submit" value="publish">Publish Post</button>
-            <button type="submit" name="submit" value="draft">Save as Draft</button>
-        </form>
+                <ul class="messages" id="image-messages">
+
+                    <li class="error">NOOB</li>
+
+                </ul>
+
+                <input id="upload-image" type="file" name="file"><button id="upload-image-btn" type="submit"  value="upload_image">Upload image</button>
 
 
-        <ul class="messages" id="image-messages">
 
-            <li class="error">NOOB</li>
-
-        </ul>
-
-        <input id="upload-image" type="file" name="file"><button id="upload-image-btn" type="submit"  value="upload_image">Upload image</button>
 
     </header>
 

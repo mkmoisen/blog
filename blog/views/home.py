@@ -661,6 +661,7 @@ def admin_post_create(post_id=None):
 
     title = session.pop('title', '')
     content = session.pop('content', '')
+    m = markdown.markdown(content)
     main_category_id = session.pop('main_category_id', '')
     other_category_ids = session.pop('other_category_ids', [])
     url_name = session.pop('url_name', '')
@@ -676,6 +677,7 @@ def admin_post_create(post_id=None):
             post = db.session.query(Post).filter_by(id=post_id).one()
             title = post.title
             content = post.content
+            m = markdown.markdown(content)
             url_name = post.url_name
             description = post.description
             post_id = post.id
@@ -691,6 +693,7 @@ def admin_post_create(post_id=None):
         return render_template('admin-post-create.html',
                                title=title,
                                content=content,
+                               markdown=m,
                                post_id=post_id,
                                description=description,
                                url_name=url_name,
@@ -845,6 +848,16 @@ def mark_post_as_draft(post_id):
 
 def check_admin_status():
     return 'is_admin' in session and session['is_admin']
+
+
+@app.route('/api/preview-post/', methods=['POST'])
+def preview_post():
+    data = request.json
+    app.logger.debug("data is {}".format(data))
+
+    content = markdown.markdown(data['content'])
+
+    return jsonify({"content": content}), 200
 
 @app.route('/post/<int:post_id>/', methods=['GET'])
 @try_except()
