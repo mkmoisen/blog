@@ -24,6 +24,7 @@
 {% endblock %}
 {% block js %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://cdn.rawgit.com/showdownjs/showdown/1.4.3/dist/showdown.min.js"></script>
 <script>
 $(document).ready(function(){
 
@@ -68,7 +69,17 @@ $(document).ready(function(){
         });
 
         $('#post-content').bind('input propertychange', (function() {
-            var content = {"content": this.value};
+
+            var content = this.value;
+            
+            var converter = new showdown.Converter(),
+                text = content,
+                html = converter.makeHtml(text);
+
+                $('#preview').html(html);
+
+
+            /*
             $.ajax({
                 type: 'POST',
                 url: '/api/preview-post/',
@@ -91,6 +102,7 @@ $(document).ready(function(){
                     console.log(responseJSON);
                 }
             });
+            */
         }));
 });
 </script>
