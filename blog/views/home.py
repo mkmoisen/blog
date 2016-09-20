@@ -851,6 +851,7 @@ def check_admin_status():
 
 
 @app.route('/api/preview-post/', methods=['POST'])
+@try_except
 def preview_post():
     data = request.json
     app.logger.debug("data is {}".format(data))
