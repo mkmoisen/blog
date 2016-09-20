@@ -67,11 +67,10 @@ $(document).ready(function(){
             });
         });
 
-        $('#post-content').bind('input propertychange', (function() {
-            var content = {"content": this.value};
+        do_content = function(content, url, success_call) {
             $.ajax({
                 type: 'POST',
-                url: '/api/preview-post/',
+                url: url,
                 data: JSON.stringify(content),
                 contentType: 'application/json',
                 cache: false,
@@ -79,10 +78,9 @@ $(document).ready(function(){
                 async: false,
                 dataType: 'json',
                 success: function(data) {
-                    console.log('Success!');
-                    console.log(data);
 
-                    $('#preview').html(data['content']);
+                    success_call(data);
+
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     var status = jqXHR.status;
@@ -91,6 +89,61 @@ $(document).ready(function(){
                     console.log(responseJSON);
                 }
             });
+        };
+
+        make_preview = function(content) {
+            var url = '/api/preview-post/';
+            success_call = function(data) {
+                console.log('Success!');
+                //console.log(data);
+                $('#preview').html(data['content']);
+            };
+            do_content(content, url, success_call);
+        };
+
+        var draft_id = null;
+        var post_id = "{{post_id}}";
+        var main_category_id = "{{main_category_id}}";
+        var title = "{{title}}";
+        var description = "{{description}}";
+        var url_name = "{{url_name}}";
+
+        save_draft = function(content) {
+            var url = '/api/save-draft/';
+            console.log("save_draft()");
+            console.log(content);
+
+            success_call = function(data) {
+                console.log('Success!');
+                console.log(data);
+                draft_id = data['draft_id'];
+                $('#draft-id').val(draft_id);
+                console.log(draft_id);
+            };
+            do_content(content, url, success_call);
+        }
+
+
+
+        $('#post-content').bind('input propertychange', (function() {
+            var content = {"content": this.value};
+            make_preview(content);
+
+            draft_id = $('#draft-id').val();
+            main_category_id = $('#main-category-id').val();
+            title = $('#post-title').val();
+            console.log("title is " + title);
+            description = $('#description').val();
+            url_name = $('#url-name').val();
+
+            content['draft_id'] = draft_id;
+            content['post_id'] = post_id;
+            content['main_category_id'] = main_category_id;
+            content['title'] = title;
+            content['description'] = description;
+            content['url_name'] = url_name;
+            save_draft(content);
+
         }));
 });
 </script>
@@ -110,10 +163,11 @@ $(document).ready(function(){
 
 
                 <form action="/admin/post/new/" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="post_id" value="{{post_id}}">
+                    <input type="hidden" id='post-id' name="post_id" value="{{post_id}}">
+                    <input type="hidden" id='draft-id' name="draft_id" value="{{draft_id}}">
 
                     <h2>Main Category</h2>
-                    <select name="main_category_id">
+                    <select id = "main-category-id" name="main_category_id">
                         {% for category in categories %}
                         <option value="{{category.id}}" {{ 'selected' if main_category_id == category.id else '' }}>{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
                         {% endfor %}
@@ -132,10 +186,10 @@ $(document).ready(function(){
                     <input type="text" id="post-title" name="post_title" value="{{title}}">
 
                     <h2>Url Name</h2>
-                    <input type="text" name="url_name" value="{{url_name}}" placeholder="Leave blank to use title as url name">
+                    <input type="text" id="url-name" name="url_name" value="{{url_name}}" placeholder="Leave blank to use title as url name">
 
                     <h2>Description</h2>
-                    <input type="text" name="description" value="{{description}}" placeholder="Leave blank to use title as description">
+                    <input type="text" id="description" name="description" value="{{description}}" placeholder="Leave blank to use title as description">
 
                     <h2>Disable comments</h2>
                     <input type="checkbox" name="is_commenting_disabled" value="true" {{'checked' if is_commenting_disabled else '' }}>

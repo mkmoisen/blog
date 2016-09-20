@@ -650,7 +650,7 @@ def upload_image():
 @login_required
 def admin_post_create(post_id=None):
     def admin_post_create_error(message, title, content, main_category_id, other_category_ids, post_id,
-                                is_commenting_disabled):
+                                is_commenting_disabled, draft_id):
         flash(message, 'error')
         session['title'] = title
         session['content'] = content
@@ -658,6 +658,7 @@ def admin_post_create(post_id=None):
         session['other_category_ids'] = other_category_ids
         session['post_id'] = post_id
         session['is_commenting_disabled'] = is_commenting_disabled
+        session['draft_id'] = draft_id
 
     title = session.pop('title', '')
     content = session.pop('content', '')
@@ -668,6 +669,7 @@ def admin_post_create(post_id=None):
     description = session.pop('url_name', '')
     post_id = '' if post_id is None else post_id
     is_commenting_disabled = session.pop('is_commenting_disabled', False)
+    draft_id = session.pop('draft_id', '')
     categories = get_categories()
 
     if request.method == 'GET':
@@ -695,6 +697,7 @@ def admin_post_create(post_id=None):
                                content=content,
                                markdown=m,
                                post_id=post_id,
+                               draft_id=draft_id,
                                description=description,
                                url_name=url_name,
                                categories=categories,
@@ -703,7 +706,10 @@ def admin_post_create(post_id=None):
                                is_commenting_disabled=is_commenting_disabled)
 
     elif request.method == 'POST':
+        app.logger.debug("Form is ")
+        app.logger.debug(request.form)
         post_id = request.form['post_id']
+        draft_id = request.form['draft_id']
         title = request.form['post_title']
         content = request.form['post_content']
         main_category_id = request.form['main_category_id']
@@ -738,6 +744,11 @@ def admin_post_create(post_id=None):
         else:
             post = db.session.query(Post).filter_by(id=post_id).one()
 
+        # Delete saved draft
+        # TODO this needs to change when I add editing an old one
+        if draft_id:
+            db.session.query(Post).filter_by(id=draft_id).delete()
+
         post.title = title
         # What if I want to legitimately use '\r\n' ?
         post.content = content.replace('\r\n', '\n')
@@ -760,7 +771,7 @@ def admin_post_create(post_id=None):
 
         if title == '' or content == '':
             admin_post_create_error('Title or content is empty', title, content, main_category_id, other_category_ids,
-                                    post_id, is_commenting_disabled)
+                                    post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
         if submit == 'publish':
@@ -777,7 +788,7 @@ def admin_post_create(post_id=None):
             db.session.rollback()
             app.logger.exception("Error saving post {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
-                                    post_id, is_commenting_disabled)
+                                    post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
 
@@ -806,7 +817,7 @@ def admin_post_create(post_id=None):
             db.session.rollback()
             app.logger.exception("Error saving Post {}".format(ex.message))
             admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
-                                    post_id, is_commenting_disabled)
+                                    post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
 
@@ -850,8 +861,71 @@ def check_admin_status():
     return 'is_admin' in session and session['is_admin']
 
 
+def text_to_number(val):
+    try:
+        return int(val)
+    except ValueError:
+        return None
+
+import uuid
+
+
+def uuid_if_empty(val):
+    if val == '':
+        return str(uuid.uuid4())
+    return val
+
+@app.route('/api/save-draft/', methods=['POST'])
+@try_except(api=True)
+def save_draft():
+    # TODO handle edits to old posts in addition to new posts
+    data = request.json
+    app.logger.debug("data is {}".format(data))
+
+    content = data['content']
+    title = data['title']
+    description = data['description']
+    url_name = data['url_name']
+    post_id = text_to_number(data['post_id'])
+    main_category_id = text_to_number(data['main_category_id'])
+    draft_id = text_to_number(data['draft_id'])
+
+    if main_category_id is None:
+        main_category_id = _get_project_category().id
+
+    # TODO if title is not empty, but description and url_name are, then handle them like in new post
+    title = uuid_if_empty(title)
+    description = uuid_if_empty(description)
+    url_name = uuid_if_empty(url_name)
+
+    if draft_id is None:
+        # This is the first time the save is happening
+        user_id = session['user_id']
+        post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
+                    category_id=main_category_id, user_id=user_id)
+    else:
+        # This is the second to N time the save is happening
+        post = db.session.query(Post).filter_by(id=draft_id).one()
+        post.content = content
+        post.title = title
+        post.description = description
+        post.url_name = url_name
+        post.main_category_id = main_category_id
+
+
+    db.session.add(post)
+    db.session.commit()
+    draft_id = post.id
+
+    ret = {
+        'draft_id': draft_id,
+    }
+
+
+    return jsonify(ret), 200
+
 @app.route('/api/preview-post/', methods=['POST'])
-@try_except
+@try_except(api=True)
 def preview_post():
     data = request.json
     app.logger.debug("data is {}".format(data))
