@@ -71,7 +71,7 @@ $(document).ready(function(){
         $('#post-content').bind('input propertychange', (function() {
 
             var content = this.value;
-            
+
             var converter = new showdown.Converter(),
                 text = content,
                 html = converter.makeHtml(text);
