@@ -685,6 +685,8 @@ def admin_post_create(post_id=None):
             post_id = post.id
             main_category_id = post.category_id
             is_commenting_disabled = post.is_commenting_disabled
+            if draft_id == '' and not post.is_published:
+                draft_id = post_id
 
             other_categories = db.session.query(CategoryPost).filter_by(post_id=post_id).all()
             other_category_ids = [other_category.category_id for other_category in other_categories]
@@ -741,13 +743,15 @@ def admin_post_create(post_id=None):
         if post_id == '':
             # new post
             post = Post(creation_date=dt)  # title=title, content=content, creation_date=dt, last_modified_date=dt, category_id=category_id)
+
         else:
             post = db.session.query(Post).filter_by(id=post_id).one()
 
-        # Delete saved draft
-        # TODO this needs to change when I add editing an old one
         if draft_id:
-            db.session.query(Post).filter_by(id=draft_id).delete()
+            # Delete saved draft if the post was never saved for real before
+            if draft_id != post_id:
+                db.session.query(Post).filter_by(id=draft_id).delete()
+
 
         post.title = title
         # What if I want to legitimately use '\r\n' ?
@@ -883,9 +887,11 @@ def save_draft():
     app.logger.debug("data is {}".format(data))
 
     content = data['content']
-    title = data['title']
+    #title = data['title']
+    title = str(uuid.uuid4())
+    url_name = title
+
     description = data['description']
-    url_name = data['url_name']
     post_id = text_to_number(data['post_id'])
     main_category_id = text_to_number(data['main_category_id'])
     draft_id = text_to_number(data['draft_id'])
@@ -893,13 +899,14 @@ def save_draft():
     if main_category_id is None:
         main_category_id = _get_project_category().id
 
-    # TODO if title is not empty, but description and url_name are, then handle them like in new post
-    title = uuid_if_empty(title)
+
     description = uuid_if_empty(description)
-    url_name = uuid_if_empty(url_name)
 
     if draft_id is None:
         # This is the first time the save is happening
+        if post_id is not None:
+            # TODO I could first check to see if title is unique and save it right
+            pass
         user_id = session['user_id']
         post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
                     category_id=main_category_id, user_id=user_id)
@@ -907,11 +914,10 @@ def save_draft():
         # This is the second to N time the save is happening
         post = db.session.query(Post).filter_by(id=draft_id).one()
         post.content = content
-        post.title = title
+        #post.title = title
         post.description = description
-        post.url_name = url_name
+        #post.url_name = url_name
         post.main_category_id = main_category_id
-
 
     db.session.add(post)
     db.session.commit()

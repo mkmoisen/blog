@@ -24,6 +24,7 @@
 {% endblock %}
 {% block js %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://cdn.rawgit.com/showdownjs/showdown/1.4.3/dist/showdown.min.js"></script>
 <script>
 $(document).ready(function(){
 
@@ -67,6 +68,8 @@ $(document).ready(function(){
             });
         });
 
+
+
         do_content = function(content, url, success_call) {
             $.ajax({
                 type: 'POST',
@@ -91,27 +94,15 @@ $(document).ready(function(){
             });
         };
 
-        make_preview = function(content) {
-            var url = '/api/preview-post/';
-            success_call = function(data) {
-                console.log('Success!');
-                //console.log(data);
-                $('#preview').html(data['content']);
-            };
-            do_content(content, url, success_call);
-        };
-
-        var draft_id = null;
+        var draft_id = "{{draft_id}}";
         var post_id = "{{post_id}}";
         var main_category_id = "{{main_category_id}}";
-        var title = "{{title}}";
+        //var title = "{{title}}";
         var description = "{{description}}";
-        var url_name = "{{url_name}}";
+        //var url_name = "{{url_name}}";
 
         save_draft = function(content) {
             var url = '/api/save-draft/';
-            console.log("save_draft()");
-            console.log(content);
 
             success_call = function(data) {
                 console.log('Success!');
@@ -123,26 +114,47 @@ $(document).ready(function(){
             do_content(content, url, success_call);
         }
 
+        // http://codetunnel.io/how-to-implement-autosave-in-your-web-app/
+        timeout_id = null;
+        $('#post-content').keypress(function() {
+            if (timeout_id) {
+                timeout_id = clearTimeout(timeout_id);
+            }
+
+            timeout_id = setTimeout(function() {
+                var content = {"content": $('#post-content').val()};
+
+                draft_id = $('#draft-id').val();
+                main_category_id = $('#main-category-id').val();
+
+                // This is new post, saving title and url_name won't cause harm unless its not unique....
+                //title = $('#post-title').val();
+                //url_name = $('#url-name').val();
+
+                description = $('#description').val();
+
+                content['draft_id'] = draft_id;
+                content['post_id'] = post_id;
+                content['main_category_id'] = main_category_id;
+                //content['title'] = title;
+                content['description'] = description;
+                //content['url_name'] = url_name;
+                save_draft(content);
+            }, 5000);
+        });
+
 
 
         $('#post-content').bind('input propertychange', (function() {
-            var content = {"content": this.value};
-            make_preview(content);
 
-            draft_id = $('#draft-id').val();
-            main_category_id = $('#main-category-id').val();
-            title = $('#post-title').val();
-            console.log("title is " + title);
-            description = $('#description').val();
-            url_name = $('#url-name').val();
+            var converter = new showdown.Converter(),
+                text = this.value,
+                html = converter.makeHtml(text);
 
-            content['draft_id'] = draft_id;
-            content['post_id'] = post_id;
-            content['main_category_id'] = main_category_id;
-            content['title'] = title;
-            content['description'] = description;
-            content['url_name'] = url_name;
-            save_draft(content);
+                $('#preview').html(html);
+
+
+
 
         }));
 });
