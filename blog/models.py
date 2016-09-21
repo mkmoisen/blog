@@ -71,6 +71,15 @@ class Post(BaseModel):
                       db.CheckConstraint("content <> ''"),
                       {'sqlite_autoincrement': True})
 
+class Draft(BaseModel):
+    id = db.Column(db.Integer, primary_key=True)
+    # Original post id is null when we are createing a new post
+    original_post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=True)
+    draft_post_id = db.Column(db.Integer, db.ForeignKey('post.id', ondelete='CASCADE'), nullable=False)
+
+    __table_args__ = ((db.UniqueConstraint("original_post_id", "draft_post_id")),
+                      {'sqlite_autoincrement': True},)
+
 
 class Wordpress(BaseModel):
     id = db.Column(db.Integer, primary_key=True)

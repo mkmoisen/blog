@@ -672,6 +672,9 @@ def admin_post_create(post_id=None):
     draft_id = session.pop('draft_id', '')
     categories = get_categories()
 
+    # This is other drafts of an original post; user should be notified of them
+    drafts = []
+
     if request.method == 'GET':
 
         if post_id != '':
@@ -685,13 +688,38 @@ def admin_post_create(post_id=None):
             post_id = post.id
             main_category_id = post.category_id
             is_commenting_disabled = post.is_commenting_disabled
-            if draft_id == '' and not post.is_published:
+            # Are we editing a post for the first time, or are we opening a draft of a new post, or a draft of an old post?
+            # Need to find if this post is a draft, or has a draft
+            # If we are opening a draft, set draft_id to post_id
+            # We DO NOT make drafts of drafts. We always edit a draft
+            # We can however make N drafts of a old post, I suppose
+            try:
+                db.session.query(Draft).filter_by(draft_post_id=post.id).one()
+            except NoResultFound:
+                # I am not a draft
+                draft_id = ''
+            else:
+                # I am a draft
                 draft_id = post_id
+
+            drafts = db.session.query(Draft).filter_by(original_post_id=post.id).all()
+            if drafts:
+                # I am original post, but there are saved drafts that user can look at if he wants
+                # Notify user of other drafts
+                drafts = [
+                    {
+                        'post_id': d.draft_post_id
+                    }
+                    for d in drafts
+                ]
+
+
 
             other_categories = db.session.query(CategoryPost).filter_by(post_id=post_id).all()
             other_category_ids = [other_category.category_id for other_category in other_categories]
         else:
-            # New
+            # New post
+            draft_id = ''
             main_category_id = get_uncategorized_id()
 
         return render_template('admin-post-create.html',
@@ -700,6 +728,7 @@ def admin_post_create(post_id=None):
                                markdown=m,
                                post_id=post_id,
                                draft_id=draft_id,
+                               drafts=drafts,
                                description=description,
                                url_name=url_name,
                                categories=categories,
@@ -740,17 +769,84 @@ def admin_post_create(post_id=None):
             other_category_ids.append(main_category_id)
 
         dt = datetime.utcnow()
+        """
         if post_id == '':
             # new post
             post = Post(creation_date=dt)  # title=title, content=content, creation_date=dt, last_modified_date=dt, category_id=category_id)
-
         else:
             post = db.session.query(Post).filter_by(id=post_id).one()
+        """
+        ## Draft logic
+        """
+        draft_id will always not be None, unless its a new post, user never paused for 5 seconds and then published.
 
-        if draft_id:
-            # Delete saved draft if the post was never saved for real before
-            if draft_id != post_id:
-                db.session.query(Post).filter_by(id=draft_id).delete()
+        We are now publishing a post and so we need to deal with the drafts.
+        If the post was a brand new post, we can simply delete the post whose id == draft id, and delete it from draft
+            table.
+        If we are saving a draft of a new post that was never saved, post_id is not None. Logic is the same as above:
+            delete the post whose id == draft id, and delete it from draft
+            Draft table will have a null original_post_id
+        If we are saving a draft of an old post that was never saved, post_id is not None.
+            For this we should set this draft post as the true post, and set the original old post as a draft ?
+            Draft table will not have a null original_post_id
+        If we are saving an old post, who has a draft, post_id is not None
+            Save this old post, dont touch the drafts
+
+        """
+        if post_id == '':
+            post = Post(creation_date=dt)
+            app.logger.debug("This is a brand new post")
+            # This is a brand new post. Just delete the draft
+            if draft_id:
+                # Delete saved draft if the post was never saved for real before
+                if draft_id != post_id:
+                    db.session.query(Post).filter_by(id=draft_id).delete()
+        else:
+            post = db.session.query(Post).filter_by(id=post_id).one()
+            # This is either saving a draft of a new post,
+            # saving a draft of an old post,
+            # or saving an old post, who may or may not have drafts
+            #
+            # 1 saving a draft of a new post that was never saved
+            try:
+                draft = db.session.query(Draft).filter_by(draft_post_id=post_id).one()
+            except NoResultFound:
+                app.logger.debug("We are saving an old post, not any draft")
+                drafts = db.session.query(Draft).filter_by(original_post_id=post_id).all()
+                if drafts:
+                    app.logger.debug("This old past has some drafts, lets delete them")
+                    # We are saving an old post, who has many drafts, dont do anything
+                    # DELETE ALL DRAFTS
+                    app.logger.debug("We have old drafts, deleting now")
+                    db.session.query(Post).filter(Post.id.in_([d.draft_post_id for d in drafts])).delete(synchronize_session=False)
+                    db.session.query(Draft).filter_by(original_post_id=post_id).delete()
+            else:
+                # We are saving a draft of some post
+                if draft.original_post_id:
+                    app.logger.debug("We are saving a draft of an old post who was saved")
+                    # We are saving a draft of some old post. Old post should become the draft
+                    # If user wants to publish this draft, set old post to unpublished
+                    # We also have to change the old posts url-name and title so uniqueness remains
+                    if submit == 'publish':
+                        u = str(uuid.uuid4())
+                        db.session.query(Post).filter_by(id=draft.original_post_id).update(
+                            {
+                                'is_published': False,
+                                'title': Post.title + u,
+                                'url_name': Post.url_name + u,
+                            }, synchronize_session=False
+                        )
+                        temp = draft.draft_post_id
+                        draft.draft_post_id = draft.original_post_id
+                        draft.original_post_id = temp
+
+                else:
+                    # we are saving a draft of a new post who was never saved
+                    # Just delete the old draft
+                    app.logger.debug("We are saving a draft of a new post who was never saved")
+                    db.session.query(Draft).filter_by(draft_post_id=post_id).delete()
+                    #db.session.query(Post).filter_by(id=draft_id).delete()
+
 
 
         post.title = title
@@ -813,7 +909,8 @@ def admin_post_create(post_id=None):
             db.session.bulk_save_objects(category_posts)
 
         # Now update last_modified_time for all categories associated with this post to reflect on the site-map.xml
-        db.session.query(Category).filter(Category.id.in_(all_category_ids)).update({'last_modified_date': dt}, synchronize_session=False)
+        if all_category_ids:
+            db.session.query(Category).filter(Category.id.in_(all_category_ids)).update({'last_modified_date': dt}, synchronize_session=False)
 
         try:
             db.session.commit()
@@ -901,8 +998,38 @@ def save_draft():
 
 
     description = uuid_if_empty(description)
+    """
+        draft_id is None under the following condition:
+        * User created new post/edit old post, and this is the very first time this api has been called
+            We need to create a draft and save it.
 
+        draft_id is not None under the following conditions (OR):
+        * User created new post/edit old post, and this is the 2nd through Nth time this api has been called
+        * User opens a draft. draft_id == post_id - dont make a new draft
+        *
+    """
     if draft_id is None:
+        user_id = session['user_id']
+        post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
+                    category_id=main_category_id, user_id=user_id)
+        db.session.add(post)
+        db.session.flush()
+        draft = Draft(original_post_id=post_id, draft_post_id=post.id)
+        db.session.add(draft)
+    else:
+        post = db.session.query(Post).filter_by(id=draft_id).one()
+        post.content = content
+        post.description = description
+        post.main_category_id = main_category_id
+        db.session.add(post)
+
+
+    db.session.commit()
+
+    """
+    if draft_id is None:
+
+        # Draft id is None under two condition
         # This is the first time the save is happening
         if post_id is not None:
             # TODO I could first check to see if title is unique and save it right
@@ -910,6 +1037,13 @@ def save_draft():
         user_id = session['user_id']
         post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
                     category_id=main_category_id, user_id=user_id)
+        db.session.add(post)
+        db.session.flush()
+        if post_id is not None:
+            # We only make drafts on
+            draft = Draft(original_post_id=post_id, draft_post_id=draft_id)
+            db.session.add(draft)
+
     else:
         # This is the second to N time the save is happening
         post = db.session.query(Post).filter_by(id=draft_id).one()
@@ -918,10 +1052,13 @@ def save_draft():
         post.description = description
         #post.url_name = url_name
         post.main_category_id = main_category_id
+        db.session.add(post)
+    """
 
-    db.session.add(post)
-    db.session.commit()
     draft_id = post.id
+
+    db.session.commit()
+
 
     ret = {
         'draft_id': draft_id,

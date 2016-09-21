@@ -173,6 +173,15 @@ $(document).ready(function(){
             {% endif %}
         {% endwith %}
 
+        {% if drafts %}
+        This post has auto-saved the following draft(s). Be aware that if you save this post, the drafts will be deleted!
+        <ul>
+            {% for draft in drafts %}
+            <li><a href="/admin/post/{{draft.post_id}}/">{{draft.post_id}}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
 
                 <form action="/admin/post/new/" method="POST" enctype="multipart/form-data">
                     <input type="hidden" id='post-id' name="post_id" value="{{post_id}}">
