@@ -128,17 +128,16 @@ $(document).ready(function(){
                 main_category_id = $('#main-category-id').val();
 
                 // This is new post, saving title and url_name won't cause harm unless its not unique....
-                //title = $('#post-title').val();
-                //url_name = $('#url-name').val();
-
+                title = $('#post-title').val();
+                url_name = $('#url-name').val();
                 description = $('#description').val();
 
                 content['draft_id'] = draft_id;
                 content['post_id'] = post_id;
                 content['main_category_id'] = main_category_id;
-                //content['title'] = title;
+                content['title'] = title;
                 content['description'] = description;
-                //content['url_name'] = url_name;
+                content['url_name'] = url_name;
                 save_draft(content);
             }, 5000);
         });

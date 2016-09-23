@@ -849,13 +849,15 @@ def admin_post_create(post_id=None):
 
 
 
-        post.title = title
-        # What if I want to legitimately use '\r\n' ?
-        post.content = content.replace('\r\n', '\n')
+
         #post.last_modified_date = dt
         post.category_id = main_category_id
         post.user_id = session['user_id']
         post.is_commenting_disabled = is_commenting_disabled
+
+        post.title = title
+        # What if I want to legitimately use '\r\n' ?
+        post.content = content.replace('\r\n', '\n')
 
         if url_name == '':
             url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', title)
@@ -984,9 +986,8 @@ def save_draft():
     app.logger.debug("data is {}".format(data))
 
     content = data['content']
-    #title = data['title']
-    title = str(uuid.uuid4())
-    url_name = title
+    title = data['title']
+    url_name = data['url_name']
 
     description = data['description']
     post_id = text_to_number(data['post_id'])
@@ -995,6 +996,21 @@ def save_draft():
 
     if main_category_id is None:
         main_category_id = _get_project_category().id
+
+    if title != '':
+        if url_name == '':
+            url_name = re.sub(r'[/:\\.;,?\{}\[\]|]', '', title)
+            url_name = ' '.join(url_name.split())
+            url_name = url_name.lower().replace(' ', '-')
+
+            if description == '':
+                description = title.capitalize()
+    else:
+        title = str(uuid.uuid4())
+        if url_name == '':
+            url_name = title
+        if description == '':
+            description = url_name
 
 
     description = uuid_if_empty(description)
@@ -1010,10 +1026,56 @@ def save_draft():
     """
     if draft_id is None:
         user_id = session['user_id']
+        post = Post(user_id=user_id)
+    else:
+        post = db.session.query(Post).filter_by(id=draft_id).one()
+
+    post.content = content
+    post.description = description
+    post.category_id = main_category_id
+    post.title = title
+    post.url_name = url_name
+    post.is_published=False
+
+    db.session.add(post)
+    try:
+        db.session.flush()
+    except IntegrityError as ex:
+        db.session.rollback()
+        app.logger.debug("Caught in flush {}".format(ex))
+        u = str(uuid.uuid4())
+        title += u
+        url_name += u
+        post.title = title
+        post.url_name = url_name
+        app.logger.debug(post.title)
+        app.logger.debug(post.url_name)
+        app.logger.debug(post.description)
+        db.session.add(post)
+        db.session.flush()
+
+    if draft_id is None:
+        draft = Draft(original_post_id=post_id, draft_post_id=post.id)
+        db.session.add(draft)
+
+    db.session.commit()
+
+    '''
+
+    if draft_id is None:
+        user_id = session['user_id']
         post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
                     category_id=main_category_id, user_id=user_id)
         db.session.add(post)
-        db.session.flush()
+        try:
+            db.session.flush()
+        except IntegrityError:
+            u = str(uuid.uuid4())
+            title += u
+            url_name += u
+            post.title = title
+            post.url_name = url_name
+            db.session.flush()
         draft = Draft(original_post_id=post_id, draft_post_id=post.id)
         db.session.add(draft)
     else:
@@ -1021,11 +1083,13 @@ def save_draft():
         post.content = content
         post.description = description
         post.main_category_id = main_category_id
+        post.title = title
+        post.url_name = url_name
         db.session.add(post)
 
 
     db.session.commit()
-
+    '''
     """
     if draft_id is None:
 
