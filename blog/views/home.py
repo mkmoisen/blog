@@ -981,7 +981,6 @@ def uuid_if_empty(val):
 @app.route('/api/save-draft/', methods=['POST'])
 @try_except(api=True)
 def save_draft():
-    # TODO handle edits to old posts in addition to new posts
     data = request.json
     app.logger.debug("data is {}".format(data))
 
@@ -1012,8 +1011,8 @@ def save_draft():
         if description == '':
             description = url_name
 
-
-    description = uuid_if_empty(description)
+    if description == '':
+        description = title
     """
         draft_id is None under the following condition:
         * User created new post/edit old post, and this is the very first time this api has been called
