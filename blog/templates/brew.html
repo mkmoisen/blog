@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block meta %}
+    <title>Matthew Moisen's Brewery</title>
+    <meta name="description" content="Matthew Moisen's live brewery temperature feed"/>
+    <link rel="canonical" href="{{web_protocol}}{{domain}}brew/">
+    <meta name="google-site-verification" content="{{google_site_verification}}" />
+{% endblock %}
+
+{% block css %}
+    body {
+        max-width: 100%
+    }
+{% endblock %}
+
+{% block js %}
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        // Load the Visualization API and the corechart package.
+      google.charts.load('current', {'packages':['corechart']});
+
+      // Set a callback to run when the Google Visualization API is loaded.
+      google.charts.setOnLoadCallback(drawChart);
+
+      // Callback that creates and populates a data table,
+      // instantiates the pie chart, passes in the data and
+      // draws it.
+
+      temps = JSON.parse({{data|tojson|safe}});
+      names = JSON.parse({{names|tojson|safe}});
+      console.log(names);
+                console.log(Date.parse("2015-01-01 00:00:00"));
+            console.log(Date.parse("2015-01-01T00:00:00"));
+            console.log(Date.parse("2015-01-01T00:00:00+00:00"));
+      function drawChart() {
+
+        // Create the data table.
+        //var data = new google.visualization.arrayToDataTable( {{data|safe}});
+        var data = new google.visualization.DataTable();
+        data.addColumn('datetime', 'Date');
+        for (var i = 0; i < names.length; i++) {
+            data.addColumn('number', names[i]);
+        }
+        for (var i = 0; i < temps.length; i++) {
+            lol = temps[i];
+            lol[0] = new Date(lol[0]);
+            console.log(lol);
+            data.addRow(lol);
+        }
+        //data.addRows(temps);
+
+        // Set chart options
+        var options = {
+          title: 'Brewery Temperatures across Time',
+          curveType: 'function',
+          legend: { position: 'bottom' },
+          pointSize: 1,
+          colors: ['red', 'blue', 'purple', 'black'],
+          //lineWidth: 0.5,
+          height: 500,
+          //width: 1500,
+          'chartArea': {'width': '90%', 'height': '80%'},
+        };
+
+
+        // Instantiate and draw our chart, passing in some options.
+        var chart = new google.visualization.ScatterChart(document.getElementById('chart'));
+        chart.draw(data, options);
+      }
+
+
+    </script>
+{% endblock %}
+
+{% block content %}
+    <p>This chart shows the temperatures for the last 24 hours of all the <a href="/blog/how-to-use-the-ds18b20-temperature-sensor-with-raspberry-pi/">beers I am brewing with my Raspberry py.</a></p>
+    <p>Check out <a href="https://github.com/mkmoisen/brew">the code on Github</a>.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="messages">
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <div id="chart"></div>
+
+{% endblock %}
