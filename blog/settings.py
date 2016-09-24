@@ -23,6 +23,16 @@ class ProductionConfig(Config):
     DOMAIN = 'matthewmoisen.com/'
     GOOGLE_SITE_VERIFICATION = 'uV8BaAWi7Oqilx1jL9gnMB1l4RQR154v3tunwZKvCpQ'
 
+MYSQL_DATABASE = ''
+MYSQL_USERNAME = ''
+MYSQL_HOST = ''
+MYSQL_PASSWORD = ''
+MYSQL_PORT = 3306
+
+BREW_HOST = ''
+BREW_USERNAME = ''
+BREW_DATABASE = ''
+BREW_PASSWORD = ''
 
 server_config = Config
 

@@ -1488,3 +1488,110 @@ def sitemap():
         # TODO Should probably email myself
 
     return template.format(urls=u''.join(urls))
+
+
+from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
+import pymysql
+from collections import namedtuple
+import itertools
+import json
+def brew_query(sql):
+    connection = pymysql.connect(host=BREW_HOST, user=BREW_USERNAME, password=BREW_PASSWORD, db=BREW_DATABASE)
+    cursor = connection.cursor()
+    cursor.execute(sql)
+    results = cursor.fetchall()
+    cursor.close()
+    connection.close()
+    return results
+
+fermentor_query = '''
+SELECT f.name, f.start_temp, f.temp_differential, t.wort_temp, t.dt
+FROM fermentation_fermentor f JOIN fermentation_temperature t ON f.id = t.fermentor_id
+WHERE 1=1
+    AND f. active = 1
+    AND t.dt > DATE_SUB(now(), INTERVAL {minutes} MINUTE)
+ORDER BY t.dt
+'''
+
+name_query = '''
+SELECT distinct f.name
+FROM fermentation_fermentor f JOIN fermentation_temperature t ON f.id = t.fermentor_id
+WHERE 1=1
+    AND f. active = 1
+    AND t.dt > DATE_SUB(now(), INTERVAL {minutes} MINUTE)
+ORDER BY f.name
+'''
+Temperature = namedtuple('Temperautre', ('name', 'start_temp', 'temp_differential', 'wort_temp', 'dt'))
+@app.route('/brew/', methods=['GET'])
+@try_except()
+def brew():
+    try:
+        minutes = request.args.get('minutes', 60 * 24)
+        try:
+            minutes = int(minutes)
+        except ValueError:
+            minutes =  60 * 24
+        try:
+            print name_query.format(minutes=minutes)
+            name_rows = brew_query(name_query.format(minutes=minutes))
+        except Exception as ex:
+            db.session.rollback()
+            app.logger.exception("Brewery database has an exception: {}".format(ex))
+            flash("The temperature database is down", "error")
+            return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
+        names = [row[0] for row in name_rows]
+        name_map = {}
+        count = 1
+        for name in names:
+            name_map[name] = count
+            count += 1
+
+        print names
+        try:
+            print fermentor_query.format(minutes=minutes)
+            temperature_rows = brew_query(fermentor_query.format(minutes=minutes))
+        except Exception as ex:
+            db.session.rollback()
+            app.logger.exception("Brewery database has an exception: {}".format(ex))
+            flash("The temperature database is down", "error")
+            return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
+        temperatures = [Temperature(*row) for row in temperature_rows]
+        ret = {}
+        for key, group in itertools.groupby(temperatures, lambda x: x.dt.strftime('%Y-%m-%dT%H:%M')):
+            g = [t for t in group]
+            ret[key] = sorted(g, key=lambda t: t.name)
+
+        real = [] # [['Date'] + names[:]]
+        for dt, temps in ret.iteritems():
+            if len(temps) <= len(names):
+                doit(dt, temps, real, name_map)
+            else:
+                count = 0
+                new = []
+                for temp in temps:
+                    new.append(temp)
+                    count += 1
+                    if count % 4:
+                        doit(dt, temps, real, name_map)
+                        new = []
+                if new:
+                    doit(dt, temps, real, name_map)
+
+        #return jsonify(data=real)
+        return render_template('brew.html', data=json.dumps(real), names=json.dumps(names))
+    except Exception as ex:
+        db.session.rollback()
+        app.logger.exception("Failed to get brewing results: {}".format(ex))
+        return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
+
+def doit(dt, temps, real, name_map):
+    a = [dt] + [None] * len(name_map)
+    for temp in temps:
+        a[name_map[temp.name]] = temp.wort_temp
+    real.append(a)
+
+ret = {
+    '2016-01-01 00:00': [
+        #Temperature()
+    ]
+}
