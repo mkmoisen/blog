@@ -22,6 +22,11 @@ from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal_column
 from BeautifulSoup import BeautifulSoup
 import requests
+from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
+import pymysql
+from collections import namedtuple
+import itertools
+import json
 
 def login_required(f):
     @wraps(f)
@@ -1490,11 +1495,7 @@ def sitemap():
     return template.format(urls=u''.join(urls))
 
 
-from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
-import pymysql
-from collections import namedtuple
-import itertools
-import json
+
 def brew_query(sql):
     connection = pymysql.connect(host=BREW_HOST, user=BREW_USERNAME, password=BREW_PASSWORD, db=BREW_DATABASE)
     cursor = connection.cursor()
@@ -1521,7 +1522,46 @@ WHERE 1=1
     AND t.dt > DATE_SUB(now(), INTERVAL {minutes} MINUTE)
 ORDER BY f.name
 '''
+
 Temperature = namedtuple('Temperautre', ('name', 'start_temp', 'temp_differential', 'wort_temp', 'dt'))
+
+
+def average_temps(dt, temps):
+    """
+    Since there may be more temps in one minute
+    then the number of columns in the chart, make sure
+    to average them out
+    """
+    grouped = {}
+    for key, group in itertools.groupby(temps, key=lambda x: x.name):
+        grouped[key] = [g for g in group]
+
+    avg_temps = []
+    for key, group in grouped.iteritems():
+        count = 0.0
+        sum = 0.0
+        for temp in group:
+            count += 1
+            sum += temp.wort_temp
+        avg_temps.append(Temperature(temp.name, temp.start_temp, temp.temp_differential, sum / count, dt))
+
+    return avg_temps
+
+def make_google_chart_row(dt, temps, real, name_map):
+    """
+    Creates a denormalized google chart row from
+    normalized temperature data
+    """
+    # Initialize an empty denormalized row with same length as the number of beers we are brewing
+    a = [dt] + [None] * len(name_map)
+
+    # Use the name map to index the correct beer into the correct column
+    for temp in temps:
+        a[name_map[temp.name]] = temp.wort_temp
+
+    real.append(a)
+
+
 @app.route('/brew/', methods=['GET'])
 @try_except()
 def brew():
@@ -1530,7 +1570,8 @@ def brew():
         try:
             minutes = int(minutes)
         except ValueError:
-            minutes =  60 * 24
+            minutes = 60 * 24
+
         try:
             print name_query.format(minutes=minutes)
             name_rows = brew_query(name_query.format(minutes=minutes))
@@ -1539,14 +1580,17 @@ def brew():
             app.logger.exception("Brewery database has an exception: {}".format(ex))
             flash("The temperature database is down", "error")
             return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
+
         names = [row[0] for row in name_rows]
+
+        # The name map will be used to assist in the denormalization process by properly indexing
+        # the correct beer to the correct column
         name_map = {}
         count = 1
         for name in names:
             name_map[name] = count
             count += 1
 
-        print names
         try:
             print fermentor_query.format(minutes=minutes)
             temperature_rows = brew_query(fermentor_query.format(minutes=minutes))
@@ -1555,43 +1599,28 @@ def brew():
             app.logger.exception("Brewery database has an exception: {}".format(ex))
             flash("The temperature database is down", "error")
             return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
+
         temperatures = [Temperature(*row) for row in temperature_rows]
-        ret = {}
+
+        # Group each temperature, truncated to the minute
+        grouped = {}
         for key, group in itertools.groupby(temperatures, lambda x: x.dt.strftime('%Y-%m-%dT%H:%M')):
             g = [t for t in group]
-            ret[key] = sorted(g, key=lambda t: t.name)
+            grouped[key] = sorted(g, key=lambda t: t.name)
 
-        real = [] # [['Date'] + names[:]]
-        for dt, temps in ret.iteritems():
+        # Denormalize and average the temperature
+        data = []
+        for dt, temps in grouped.iteritems():
             if len(temps) <= len(names):
-                doit(dt, temps, real, name_map)
-            else:
-                count = 0
-                new = []
-                for temp in temps:
-                    new.append(temp)
-                    count += 1
-                    if count % 4:
-                        doit(dt, temps, real, name_map)
-                        new = []
-                if new:
-                    doit(dt, temps, real, name_map)
+                avg_temps = average_temps(dt, temps)
+                make_google_chart_row(dt, avg_temps, data, name_map)
 
-        #return jsonify(data=real)
-        return render_template('brew.html', data=json.dumps(real), names=json.dumps(names))
+        return render_template('brew.html', data=json.dumps(data), names=json.dumps(names))
+
     except Exception as ex:
         db.session.rollback()
+        flash("I'm sorry there was an error", "error")
         app.logger.exception("Failed to get brewing results: {}".format(ex))
         return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
 
-def doit(dt, temps, real, name_map):
-    a = [dt] + [None] * len(name_map)
-    for temp in temps:
-        a[name_map[temp.name]] = temp.wort_temp
-    real.append(a)
 
-ret = {
-    '2016-01-01 00:00': [
-        #Temperature()
-    ]
-}
