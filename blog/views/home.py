@@ -1604,9 +1604,17 @@ def average_temps(dt, temps):
         count = 0.0
         sum = 0.0
         for temp in group:
-            count += 1
-            sum += temp.wort_temp
-        avg_temps.append(Temperature(temp.name, temp.start_temp, temp.temp_differential, sum / count, dt))
+            try:
+                sum += temp.wort_temp
+            except TypeError as ex:
+                pass
+                # Not sure why, but some of the wort temps are null?
+                # Must a be bug in brew app
+            else:
+                count += 1
+                
+        if count != 0:
+            avg_temps.append(Temperature(temp.name, temp.start_temp, temp.temp_differential, sum / count, dt))
 
     return avg_temps
 
