@@ -1612,7 +1612,7 @@ def average_temps(dt, temps):
                 # Must a be bug in brew app
             else:
                 count += 1
-                
+
         if count != 0:
             avg_temps.append(Temperature(temp.name, temp.start_temp, temp.temp_differential, sum / count, dt))
 
