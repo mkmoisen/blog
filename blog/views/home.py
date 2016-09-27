@@ -27,6 +27,7 @@ import pymysql
 from collections import namedtuple
 import itertools
 import json
+from sqlalchemy import or_
 
 def login_required(f):
     @wraps(f)
@@ -306,6 +307,47 @@ def get_project_post(url_name):
 @try_except()
 def resume():
     return get_post_by_name('resume')
+
+
+@app.route('/api/search/post/', methods=['GET'])
+@try_except(api=True)
+def search_posts():
+    app.logger.debug(request.url)
+    if not request.args:
+        return jsonify({"error": "provide query params"}), 400
+    app.logger.debug(request.args)
+
+    if 'category_id' not in request.args and 'search' not in request.args:
+        return jsonify({"error": "unknown query params {}".format(request.args)}), 400
+
+    if 'category_id' in request.args:
+        posts = db.session.query(Post).join(CategoryPost) \
+            .filter(CategoryPost.category_id == request.args['category_id']) \
+            .filter(Post.is_published == True) \
+            .order_by(desc(Post.creation_date))
+
+    if 'search' in request.args:
+        searches = request.args['search'].lower().split()
+        app.logger.debug(searches)
+
+        q = db.session.query(Post)
+
+        q = q.filter(or_(func.lower(Post.title).like('%' + search + '%') for search in searches))
+        posts = q
+
+    posts = [
+            {
+                'title': post.title,
+                'url_name': post.url_name
+            }
+            for post in posts.all()
+        ]
+
+
+    return jsonify(data=posts), 200
+
+
+
 
 """
 @app.route('/blog/category/<int:category_id>/', methods=['GET'])

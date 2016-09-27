@@ -152,10 +152,81 @@ $(document).ready(function(){
 
                 $('#preview').html(html);
 
-
-
-
         }));
+
+        $('#link-category-id').on('change', function() {
+            var data = {'category_id': this.value};
+
+             $.ajax({
+                type: 'get',
+                url: "/api/search/post/",
+                data: data,
+                dataType: 'json',
+                success: function(data) {
+
+                    console.log(data);
+                    $('#link-search-results').children().remove();
+                    for (var i = 0; i < data['data'].length; i++) {
+                        item = data['data'][i];
+                        $('#link-search-results').append('<option value="' + item['url_name'] + '">' + item['title'] + '</option>');
+                    }
+
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    var status = jqXHR.status;
+                    var responseJSON = jqXHR.responseJSON;
+                    console.log(status);
+                    console.log(responseJSON);
+                }
+            });
+
+
+        });
+
+        link_search_timeout_id = null;
+        $('#link-search').keypress(function() {
+            if (link_search_timeout_id) {
+                clearTimeout(link_search_timeout_id);
+            }
+
+            link_search_timeout_id = setTimeout(function() {
+                var data = {'search': $('#link-search').val()};
+                console.log(data)
+
+                $.ajax({
+                    type: 'get',
+                    url: "/api/search/post/",
+                    data: data,
+                    dataType: 'json',
+                    success: function(data) {
+
+                        console.log(data);
+                        $('#link-search-results').children().remove();
+                        for (var i = 0; i < data['data'].length; i++) {
+                            item = data['data'][i];
+                            $('#link-search-results').append('<option value="' + item['url_name'] + '">' + item['title'] + '</option>');
+                        }
+
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        var status = jqXHR.status;
+                        var responseJSON = jqXHR.responseJSON;
+                        console.log(status);
+                        console.log(responseJSON);
+                    }
+                });
+
+            }, 500);
+
+        });
+
+     $('#add-link-btn').click(function(){
+        var link = "[](/blog/" + $('#link-search-results').val() + "/)";
+        var post_content = $('#post-content').val() + link;
+        $('#post-content').val(post_content);
+     });
+
+
 });
 </script>
 {% endblock %}
@@ -216,6 +287,19 @@ $(document).ready(function(){
 
                     <h2>Content</h2>
                     <textarea id="post-content" name="post_content">{{content}}</textarea>
+
+                    <h3>Add link</h3>
+                    <select id="link-category-id">
+                        <option value="null" selected>Select a category</option>
+                        {% for category in categories %}
+                        <option value="{{category.id}}">{{ '&nbsp;'|safe * category.depth * 4}}{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" id="link-search" placeholder="Search for title here">
+                    <select id="link-search-results">
+
+                    </select>
+                    <button id='add-link-btn' type="button">Add link</button>
 
                     <h2>Preview</h2>
                     <div id="preview">{{markdown|safe}}</div>
