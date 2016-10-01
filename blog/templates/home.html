@@ -9,7 +9,17 @@
 
 {% endblock %}
 {% block content %}
-    <header> <h1>Recent Posts</h1></header>
+
+    <p>
+    My name is Matthew Moisen. I am a programmer and homebrewer, and this is <a href="/projects/python-blog/">my python blog</a> where I write on these topics.
+    </p>
+    <p>
+    Scroll down to check out my recent posts,
+        <a href="/blog/category/">view all posts by category</a>,
+        <a href="/projects/">check out some projects I'm working on</a>,
+        <a href="/resume/">view my resume</a>,
+        or <a href="/brew/">check out my live homebrewing temperature feed</a>.
+    </p>
     {% if is_admin %}
     <a href="/admin/post/new/"><button type="submit">Add Post</button></a>
     {% endif %}
