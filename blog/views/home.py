@@ -1739,14 +1739,20 @@ def sitemap():
             urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix), last_modified_time=max,
                                  priority=priority))
 
+    project_categories = db.session.query(Project).all()
+    project_category_ids = [p.category_id for p in project_categories]
+
     # Now do posts
-    for url_name, last_modified_date  in db.session.query(Post.url_name, Post.last_modified_date) \
+    for url_name, last_modified_date, category_id  in db.session.query(Post.url_name, Post.last_modified_date, Post.category_id) \
             .filter(Post.is_published == True):
         if url_name != 'resume':
             # Prevent resume from given a url of /blog/resume and use the /resume/ instead
             url_postfix = unicode(url_name)
             last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-            urls.append(make_url(u'{}{}blog/{}/'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
+            u = u'{}{}blog/{}/'
+            if category_id in project_category_ids:
+                u = u'{}{}projects/{}/'
+            urls.append(make_url(u.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
                                  last_modified_time=last_modified_time, priority=u'0.5'))
 
     # Now to categories
