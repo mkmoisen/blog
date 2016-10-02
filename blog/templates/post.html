@@ -10,6 +10,37 @@
 {% block css %}
 
 {% endblock %}
+
+
+{% macro print_table_of_contents() %}
+    {% if table_of_contents %}
+        <p>This post is part of a series. This list contains all of the posts: </p>
+        <ul>
+            {% for post in table_of_contents %}
+                <li>
+                    {% if post.is_published %}
+                    <a href="{{post.url}}">
+                    {% endif %}
+
+                    {% if post.post_id == post.this_post_id %}
+                        <strong>
+                    {% endif %}
+
+                    {{post.title}}
+
+                    {% if post.post_id == post.this_post_id %}
+                        </strong>
+                    {% endif %}
+
+                    {% if post.is_published %}
+                    </a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endmacro %}
+
 {% block content %}
     <header>
         <h1>{{title}}</h1>
@@ -23,7 +54,11 @@
         {% endif %}
     {% endif %}
 
+    {{ print_table_of_contents() }}
+
     {{content|safe}}
+
+    {{ print_table_of_contents() }}
 
     {% if is_admin %}
     <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>

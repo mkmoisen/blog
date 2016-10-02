@@ -251,11 +251,14 @@ def category():
     '''
     Returns a list of categories and the associated post count within each
     '''
+    # TODO I want /projects/ to resuse this and only return a subset of categories who are project categories
     categories = db.session.query(Category, func.count(1)) \
         .select_from(Post).outerjoin(CategoryPost).outerjoin(Category) \
         .filter(Post.is_published == True) \
         .group_by(Category) \
         .order_by(Category.parent_id)
+
+    title = 'Blog Categories'
 
     tree = []
     for category, count in categories:
@@ -264,6 +267,9 @@ def category():
             category.count = count
 
     print_tree(tree)
+
+    project_categories = db.session.query(Project).all()
+    project_category_ids = [project_category.category_id for project_category in project_categories]
 
     for depth, cat in iter_tree(tree):
         print cat
@@ -274,7 +280,8 @@ def category():
             'name': category.name,
             'category_id': category.id,
             'url_name': category.url_name,
-            'count': category.count
+            'count': category.count,
+            'is_project': True if category.id in project_category_ids else False
         }
         for depth, category in iter_tree(tree)
     ]
@@ -285,7 +292,7 @@ def category():
     is_admin = check_admin_status()
 
 
-    return render_template('category.html', categories=categories, is_admin=is_admin)
+    return render_template('category.html', categories=categories, is_admin=is_admin, title=title)
 
 def _get_project_category():
     return db.session.query(Category).filter_by(name="Projects").one()
@@ -293,15 +300,56 @@ def _get_project_category():
 @app.route("/projects/", methods=['GET'])
 @try_except()
 def get_projects():
-    category = _get_project_category()
-    return category_posts_by_name(category.url_name)
+    """
+    This needs to be changed to the following:
+    It should return the /category/ page, except contain only categories who are Project categories
+    """
+    categories = db.session.query(Category, func.count(1)) \
+        .select_from(Post).outerjoin(CategoryPost).outerjoin(Category).join(Project) \
+        .filter(Post.is_published == True) \
+        .group_by(Category) \
+        .order_by(Category.parent_id)
+
+    title = 'Projects'
+
+    categories = [
+        {
+            'depth': 0,
+            'name': category.name,
+            'category_id': category.id,
+            'url_name': category.url_name,
+            'count': count,
+            'is_project': True,
+        }
+        for category, count in categories
+    ]
+
+    app.logger.debug("categories is")
+    app.logger.debug(categories)
+
+    is_admin = check_admin_status()
+
+
+    return render_template('category.html', categories=categories, is_admin=is_admin, title=title)
 
 @app.route('/projects/<url_name>/', methods=['GET'])
+@try_except()
 def get_project_post(url_name):
-    post = db.session.query(Post).join(Category).filter(Category.name == 'Projects').filter(Post.url_name == url_name) \
+    """
+    A Project has many posts, but only one introduction post.
+    The /projects/url_name/ route should return the introduction post for a project.
+
+    We know a post belongs to a project if it is in ProjectPost
+    We know if a post is an introduction post to a project if its order_no is 0
+    """
+    p = db.session.query(Post)\
+        .join(ProjectPost) \
+        .filter(Post.url_name == url_name) \
+        .filter(ProjectPost.order_no == 0) \
         .one()
 
-    return get_post_by_name(post.url_name)
+    # TODO why not post(post.id) ?
+    return post(p.id)
 
 @app.route('/resume/', methods=['GET'])
 @try_except()
@@ -343,17 +391,8 @@ def search_posts():
             for post in posts.all()
         ]
 
-
     return jsonify(data=posts), 200
 
-
-
-
-"""
-@app.route('/blog/category/<int:category_id>/', methods=['GET'])
-@try_except()
-def category_posts(category_id):
-"""
 
 @app.route('/blog/category/<url_name>/', methods=['GET'])
 @try_except()
@@ -362,12 +401,6 @@ def category_posts_by_name(url_name):
 
     category = db.session.query(Category).filter_by(url_name=url_name).one()
     category_id = category.id
-    #return category_posts(category_id)
-
-
-    # Uncategorized have category_id of Null. Because strings cannot be passed, make sure to pass a 0 instead
-
-    #category = db.session.query(Category).filter_by(id=category_id).one()
     category_name = category.name
     category_url_name = category.url_name
     category_description = category.description
@@ -380,11 +413,15 @@ def category_posts_by_name(url_name):
 
     is_admin = check_admin_status()
 
-    project_category = _get_project_category()
+    project_introduction_posts = db.session.query(ProjectPost).filter_by(order_no=0)
+
     def make_url(post):
         if post.url_name == 'resume':
             return '/resume/'
-        if post.category_id == project_category.id:
+        if post.id in project_introduction_posts:
+            # Only project introduction posts get /projects/ url, every other post gets the normal /blog/
+            # Unless we wanted the other posts to get /projects/<url_name>/ post ...
+            # If we wanted that, I would need to add the few posts for the python blog to the wordpress url resolution..
             return '/projects/{}/'.format(post.url_name)
         return '/blog/{}/'.format(post.url_name)
 
@@ -398,7 +435,7 @@ def category_posts_by_name(url_name):
         for p in posts
     ]
 
-    return render_template('category-posts.html', posts=posts, category_name=category_name, category_id=category_id,
+    return render_template('category-posts.html', posts=posts, title=category_name, category_name=category_name, category_id=category_id,
                            is_admin=is_admin, category_url_name=category_url_name, category_description=category_description)
 
 @app.route('/admin/', methods=['GET'])
@@ -577,11 +614,10 @@ def get_categories(back=None):
 @try_except()
 @login_required
 def admin_category_create(category_id=None):
-    name = ''
-    parent_id = session.get('category_parent_id', None)
     name = session.pop('category_url_name', '')
-    description = session.pop('category_description', '')
+    parent_id = session.get('category_parent_id', None)
     url_name = session.pop('category_url_name', '')
+    description = session.pop('category_description', '')
 
     categories = get_categories()
 
@@ -590,8 +626,9 @@ def admin_category_create(category_id=None):
             # This is for updates
             category = db.session.query(Category).filter_by(id=category_id).one()
             name = category.name
-            description = category.description
+            parent_id = category.parent_id
             url_name = category.url_name
+            description = category.description
 
         return render_template('admin-category-create.html',
                                name=name,
@@ -631,25 +668,76 @@ def admin_category_create(category_id=None):
             url_name = url_name.lower().replace(' ', '-')
 
         if description == '':
-            description = 'Matthew Moisen''s commentary on {}'.format(category.name)
+            description = "Matthew Moisen's commentary on {}".format(category.name)
+
 
         category.url_name = url_name
         category.description = description
 
+
         db.session.add(category)
+        resubmit = False
+
+        try:
+            db.session.flush()
+        except IntegrityError as ex:
+            flash(ex.message, 'error')
+            resubmit = True
+
+        # Check if category is a project and handle the category/project logic
+        if parent_id is not None:
+            print "its not none!"
+            projects_category_id = _get_project_category().id
+            if parent_id == projects_category_id:
+                print "parent id is project category!"
+                try:
+                    project = db.session.query(Project).filter_by(category_id=category_id).one()
+                except NoResultFound:
+                    print "no project found, adding it now"
+                    # This is a brand new project category, no updates. Add to project table
+                    project = Project(category_id=category.id)
+                    db.session.add(project)
+                else:
+                    # This category is already a project and we are updating.
+                    print "we found a project oh no"
+                    try:
+                        # Search for the introduction to make updates
+                        project_post = db.session.query(Post).join(ProjectPost) \
+                            .filter(ProjectPost.order_no == 0) \
+                            .filter(ProjectPost.project_id == project.id) \
+                            .one()
+                    except NoResultFound:
+                        print "we found a project post"
+                        # User is modifying the category/project before he added any posts
+                        pass
+                    else:
+                        # Make sure introduction post has the same details as the category
+                        if project_post.title != category.name or project_post.url_name != category.url_name or project_post.description != category.description:
+                            project_post.title = category.name
+                            project_post.url_name = category.url_name
+                            project_post.description = category.description
+                            db.session.add(project_post)
+
+
+        app.logger.debug("ABOUT TO COMMIT")
         try:
             db.session.commit()
         except IntegrityError as ex:
             flash(ex.message, 'error')
+            resubmit = True
+
+        if resubmit:
             session['category_url_name'] = url_name
             session['category_description'] = description
             session['category_name'] = name
-
+            session['category_parent_id'] = parent_id
             return redirect(url_for('admin_category_create'))
-        else:
-            flash("Category '{}' created successfully".format(name), 'success')
-            ping_google_sitemap()
 
+        flash("Category '{}' created successfully".format(name), 'success')
+        ping_google_sitemap()
+
+        # This makes it easy to rapidly create multiple categories under the same parent by setting the UI's
+        # parent_id column to either this category id or a parents
         if parent_id is None:
             session['category_parent_id'] = category.id
         else:
@@ -940,26 +1028,71 @@ def admin_post_create(post_id=None):
                                     post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
-
+        # Associate this post with all of its categories
+        # Its easier to just delete all the M:N and start over
         db.session.query(CategoryPost).filter_by(post_id=post.id).delete()
-
 
         # other_category_ids has all the other_category_ids AND the main_category_id in it now
         all_category_ids = set(other_category_ids)
         back = {}
         get_category_tree(back)
-        other_categories = db.session.query(Category).filter(Category.id.in_(other_category_ids)).all()
+        other_categories = []
+        if other_category_ids:
+            other_categories = db.session.query(Category).filter(Category.id.in_(other_category_ids)).all()
         for other_category in other_categories:
             for ascendant in find_ascendants(back, other_category):
                 all_category_ids.add(ascendant.id)
 
         category_posts = [CategoryPost(category_id=category_id, post_id=post.id) for category_id in all_category_ids]
         if category_posts:
-            db.session.bulk_save_objects(category_posts)
+            db.session.bulk_save_objects(category_posts, return_defaults=True)
 
         # Now update last_modified_time for all categories associated with this post to reflect on the site-map.xml
         if all_category_ids:
             db.session.query(Category).filter(Category.id.in_(all_category_ids)).update({'last_modified_date': dt}, synchronize_session=False)
+
+        # Associate this post with its project
+        try:
+            project = db.session.query(Project).filter_by(category_id=main_category_id).one()
+        except NoResultFound:
+            # This post doesn't belong to a project category
+            pass
+        else:
+            # Check to see if this is the first post in this project
+            project_posts = db.session.query(ProjectPost).filter_by(project_id=project.id)\
+                .order_by(ProjectPost.order_no) \
+                .all()
+
+            is_intro_post = False
+            is_new = False
+            order_no = 0
+            if not project_posts:
+                is_intro_post = True
+                is_new = True
+                order_no = 0
+            else:
+                project_post = next((pp for pp in project_posts if pp.post_id == post.id), False)
+                if project_post:
+                    if project_post.order_no == 0:
+                        is_intro_post = True
+                else:
+                    is_new = True
+                    # Assume that order should be the last for now.
+                    order_no = project_posts[-1].order_no + 1
+
+            if is_new:
+                project_post = ProjectPost(project_id=project.id, post_id=post.id, order_no=order_no)
+                db.session.add(project_post)
+
+            if is_intro_post:
+                # The introduction post must have the same Title, url, and description as the project category
+                project_category = db.session.query(Category).filter_by(id=project.category_id).one()
+                if post.title != project_category.name or post.url_name != project_category.url_name or post.description != project_category.description:
+                    post.title = project_category.name
+                    post.url_name = project_category.url_name
+                    post.description = project_category.description
+                    # I don't think this is necessary since it was already added
+                    db.session.add(post)
 
         try:
             db.session.commit()
@@ -1040,8 +1173,9 @@ def save_draft():
     main_category_id = text_to_number(data['main_category_id'])
     draft_id = text_to_number(data['draft_id'])
 
+    # I don't think main_category_id will ever be None as it defaults to uncategorized right
     if main_category_id is None:
-        main_category_id = _get_project_category().id
+        main_category_id = get_uncategorized_id()
 
     if title != '':
         if url_name == '':
@@ -1187,6 +1321,31 @@ def preview_post():
 
     return jsonify({"content": content}), 200
 
+
+
+def get_project_table_of_contents(post):
+    posts = db.session.query(Post, ProjectPost).join(ProjectPost).join(Project) \
+        .filter(Project.category_id == post.category_id) \
+        .order_by(ProjectPost.order_no)
+
+    def make_url(post, project_post):
+        if project_post.order_no == 0:
+            return '/projects/{}/'.format(post.url_name)
+        return '/blog/{}/'.format(post.url_name)
+
+    return [
+        {
+            'post_id': p.id,
+            'order_no': project_post.order_no,
+            'title': p.title,
+            'url': make_url(p, project_post),
+            'is_published': p.is_published,
+            'this_post_id': post.id
+        }
+        for p, project_post, in posts
+    ]
+
+
 @app.route('/post/<int:post_id>/', methods=['GET'])
 @try_except()
 def post(post_id):
@@ -1211,16 +1370,22 @@ def post(post_id):
     description = post.description
     is_commenting_disabled = post.is_commenting_disabled
 
+    # Because all posts actually route through this function, the canonical url needs to be set appropriately
+    # I think it would be better to change this into a normal function instead of a route
     canonical_url = '{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'])
     if url_name == 'resume':
         canonical_url += 'resume/'
     else:
-        project_category = _get_project_category()
-        if category_id == project_category.id:
-            canonical_url += 'projects/{}/'.format(url_name)
-        else:
+        # See if this post is the introduction post to a Project
+        try:
+            project_post = db.session.query(ProjectPost).filter_by(post_id=post_id).one()
+        except NoResultFound:
             canonical_url += 'blog/{}/'.format(url_name)
-
+        else:
+            if project_post.order_no == 0:
+                # This is the introduction project post
+                canonical_url += 'projects/{}/'.format(url_name)
+                # No need to find category's description/url_name/etc as its enforced to be identical on post creation
 
     comment_name = session.pop('comment_name', '')
     comment_content = session.pop('comment_content', '')
@@ -1243,6 +1408,8 @@ def post(post_id):
 
     spam = math_spam()
 
+    table_of_contents = get_project_table_of_contents(post)
+
     return render_template('post.html',
                            is_admin=is_admin,
                            canonical_url=canonical_url,
@@ -1252,6 +1419,7 @@ def post(post_id):
                            url_name=url_name,
                            is_published=is_published,
                            description=description,
+                           table_of_contents=table_of_contents,
                            comment_name=comment_name,
                            comment_content=comment_content,
                            comment_email=comment_email,

@@ -35,7 +35,7 @@
 
 {% endblock %}
 {% block content %}
-    <header> <h1>Categories</h1></header>
+    <header> <h1>{{title}}</h1></header>
     {% if is_admin %}
     <a href="/admin/category/"><button type="submit">Add Category</button></a>
     {% endif %}
@@ -52,7 +52,11 @@
                 {% if category.url_name == 'projects' %}
                 <td><a href="/projects/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
                 {% else %}
-                <td><a href="/blog/category/{{category.url_name}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                    {% if category.is_project %}
+                    <td><a href="/projects/{{category.url_name}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                    {% else %}
+                    <td><a href="/blog/category/{{category.url_name}}/"> {{ '&nbsp;'|safe * category.depth * 8 }}{{category.name}}</a></td>
+                    {% endif %}
                 {% endif %}
                 <td>{{category.count}}</td>
             </tr>
