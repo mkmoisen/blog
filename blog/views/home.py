@@ -612,6 +612,41 @@ def get_categories(back=None):
     ]
 
 
+def make_project_category(category_id):
+    """
+    if parent_id is not None:
+    print "its not none!"
+    projects_category_id = _get_project_category().id
+    if parent_id == projects_category_id:
+    """
+    print "parent id is project category!"
+    try:
+        project = db.session.query(Project).filter_by(category_id=category_id).one()
+    except NoResultFound:
+        print "no project found, adding it now"
+        # This is a brand new project category, no updates. Add to project table
+        project = Project(category_id=category.id)
+        db.session.add(project)
+    else:
+        # This category is already a project and we are updating.
+        print "we found a project oh no"
+        try:
+            # Search for the introduction to make updates
+            project_post = db.session.query(Post).join(ProjectPost) \
+                .filter(ProjectPost.order_no == 0) \
+                .filter(ProjectPost.project_id == project.id) \
+                .one()
+        except NoResultFound:
+            print "we found a project post"
+            # User is modifying the category/project before he added any posts
+            pass
+        else:
+            # Make sure introduction post has the same details as the category
+            if project_post.title != category.name or project_post.url_name != category.url_name or project_post.description != category.description:
+                project_post.title = category.name
+                project_post.url_name = category.url_name
+                project_post.description = category.description
+                db.session.add(project_post)
 
 
 @app.route('/admin/category/', methods=['GET', 'POST'])
@@ -695,33 +730,7 @@ def admin_category_create(category_id=None):
             projects_category_id = _get_project_category().id
             if parent_id == projects_category_id:
                 print "parent id is project category!"
-                try:
-                    project = db.session.query(Project).filter_by(category_id=category_id).one()
-                except NoResultFound:
-                    print "no project found, adding it now"
-                    # This is a brand new project category, no updates. Add to project table
-                    project = Project(category_id=category.id)
-                    db.session.add(project)
-                else:
-                    # This category is already a project and we are updating.
-                    print "we found a project oh no"
-                    try:
-                        # Search for the introduction to make updates
-                        project_post = db.session.query(Post).join(ProjectPost) \
-                            .filter(ProjectPost.order_no == 0) \
-                            .filter(ProjectPost.project_id == project.id) \
-                            .one()
-                    except NoResultFound:
-                        print "we found a project post"
-                        # User is modifying the category/project before he added any posts
-                        pass
-                    else:
-                        # Make sure introduction post has the same details as the category
-                        if project_post.title != category.name or project_post.url_name != category.url_name or project_post.description != category.description:
-                            project_post.title = category.name
-                            project_post.url_name = category.url_name
-                            project_post.description = category.description
-                            db.session.add(project_post)
+                make_project_category(category.id)
 
 
         app.logger.debug("ABOUT TO COMMIT")
@@ -989,9 +998,6 @@ def admin_post_create(post_id=None):
 
 
 
-
-        #post.last_modified_date = dt
-        post.category_id = main_category_id
         post.user_id = session['user_id']
         post.is_commenting_disabled = is_commenting_disabled
 
@@ -1010,6 +1016,20 @@ def admin_post_create(post_id=None):
         post.description = description
 
         post.url_name = url_name
+
+        # If main category is under the Projects category, auto create a new subcategory of Projects
+        # using this post name and url and description
+        # And set this post's category to the new subcategory
+        project_category_id = _get_project_category().id
+        if main_category_id == project_category_id:
+            subcategory = Category(name=post.title, url_name=post.url_name, description=post.description,
+                                   parent_id=project_category_id)
+            db.session.add(subcategory)
+            db.session.flush()
+            main_category_id = subcategory.id
+            other_category_ids.append(main_category_id)
+
+        post.category_id = main_category_id
 
         if title == '' or content == '':
             admin_post_create_error('Title or content is empty', title, content, main_category_id, other_category_ids,
