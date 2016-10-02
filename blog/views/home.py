@@ -99,7 +99,7 @@ def home():
     Grab all published posts and display for user along with category
     '''
 
-    posts = db.session.query(Post, Category, Project).join(Category).outerjoin(Project) \
+    posts = db.session.query(Post, Category).join(Category) \
         .filter(Post.is_published == True) \
         .order_by(Post.creation_date.desc())  \
         .all()
@@ -112,7 +112,11 @@ def home():
         .all()
     """
 
+    project_intro_posts = db.session.query(ProjectPost).filter_by(order_no=0)
+    project_intro_post_ids = [p.post_id for p in project_intro_posts]
+
     is_admin = check_admin_status()
+
 
     posts = [
         {
@@ -122,10 +126,10 @@ def home():
             'category': category.name,
             'category_url_name': category.url_name,
             'category_id': category.id,
-            'is_project': True if project is not None else False,
+            'is_project': True if p.id in project_intro_post_ids else False,
 
         }
-        for p, category, project in posts
+        for p, category in posts
     ]
     return render_template('home.html', posts=posts, is_admin=is_admin)
 
@@ -1739,18 +1743,18 @@ def sitemap():
             urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix), last_modified_time=max,
                                  priority=priority))
 
-    project_categories = db.session.query(Project).all()
-    project_category_ids = [p.category_id for p in project_categories]
+    project_posts = db.session.query(ProjectPost).filter_by(order_no=0).all()
+    project_post_ids = [p.post_id for p in project_posts]
 
     # Now do posts
-    for url_name, last_modified_date, category_id  in db.session.query(Post.url_name, Post.last_modified_date, Post.category_id) \
+    for url_name, last_modified_date, post_id in db.session.query(Post.url_name, Post.last_modified_date, Post.id) \
             .filter(Post.is_published == True):
         if url_name != 'resume':
             # Prevent resume from given a url of /blog/resume and use the /resume/ instead
             url_postfix = unicode(url_name)
             last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
             u = u'{}{}blog/{}/'
-            if category_id in project_category_ids:
+            if post_id in project_post_ids:
                 u = u'{}{}projects/{}/'
             urls.append(make_url(u.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
                                  last_modified_time=last_modified_time, priority=u'0.5'))
