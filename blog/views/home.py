@@ -98,8 +98,8 @@ def home():
     '''
     Grab all published posts and display for user along with category
     '''
-    # TODO change this to inner join between Post and Category
-    posts = db.session.query(Post, Category).join(Category) \
+
+    posts = db.session.query(Post, Category, Project).join(Category).outerjoin(Project) \
         .filter(Post.is_published == True) \
         .order_by(Post.creation_date.desc())  \
         .all()
@@ -119,12 +119,13 @@ def home():
             'title': p.title,
             'post_id': p.id,
             'url_name': p.url_name,
-            'category': c.name,
-            'category_url_name': c.url_name,
-            'category_id': c.id
+            'category': category.name,
+            'category_url_name': category.url_name,
+            'category_id': category.id,
+            'is_project': True if project is not None else False,
 
         }
-        for p, c in posts
+        for p, category, project in posts
     ]
     return render_template('home.html', posts=posts, is_admin=is_admin)
 

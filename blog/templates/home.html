@@ -36,15 +36,18 @@
                 {% if post.url_name == 'resume' %}
                 <td><a href="/resume/">{{post.title}}</a></td>
                 {% else %}
-                    {% if post.category == 'Projects' %}
+                    {% if post.is_project %}
                     <td><a href="/projects/{{post.url_name}}/">{{post.title}}</a></td>
                     {% else %}
                     <td><a href="/blog/{{post.url_name}}/">{{post.title}}</a></td>
                     {% endif %}
-
                 {% endif %}
 
+                {% if post.is_project %}
+                    <td><a href="/projects/{{post.category_url_name}}">{{post.category}}</a></td>
+                {% else %}
                 <td><a href="/blog/category/{{post.category_url_name}}">{{post.category}}</a></td>
+                {% endif %}
             </tr>
         {% endfor %}
         </tbody>
