@@ -612,7 +612,7 @@ def get_categories(back=None):
     ]
 
 
-def make_project_category(category_id):
+def make_project_category(category):
     """
     if parent_id is not None:
     print "its not none!"
@@ -621,7 +621,7 @@ def make_project_category(category_id):
     """
     print "parent id is project category!"
     try:
-        project = db.session.query(Project).filter_by(category_id=category_id).one()
+        project = db.session.query(Project).filter_by(category_id=category.id).one()
     except NoResultFound:
         print "no project found, adding it now"
         # This is a brand new project category, no updates. Add to project table
@@ -730,7 +730,7 @@ def admin_category_create(category_id=None):
             projects_category_id = _get_project_category().id
             if parent_id == projects_category_id:
                 print "parent id is project category!"
-                make_project_category(category.id)
+                make_project_category(category)
 
 
         app.logger.debug("ABOUT TO COMMIT")
@@ -792,6 +792,77 @@ def upload_image():
 
 
 
+def draft_logic(post_id, draft_id, submit):
+    """
+    draft_id will always not be None, unless its a new post, user never paused for 5 seconds and then published.
+
+    We are now publishing a post and so we need to deal with the drafts.
+    If the post was a brand new post, we can simply delete the post whose id == draft id, and delete it from draft
+        table.
+    If we are saving a draft of a new post that was never saved, post_id is not None. Logic is the same as above:
+        delete the post whose id == draft id, and delete it from draft
+        Draft table will have a null original_post_id
+    If we are saving a draft of an old post that was never saved, post_id is not None.
+        For this we should set this draft post as the true post, and set the original old post as a draft ?
+        Draft table will not have a null original_post_id
+    If we are saving an old post, who has a draft, post_id is not None
+        Save this old post, dont touch the drafts
+
+    """
+    if post_id == '':
+        post = Post()
+        app.logger.debug("This is a brand new post")
+        # This is a brand new post. Just delete the draft
+        if draft_id:
+            # Delete saved draft if the post was never saved for real before
+            if draft_id != post_id:
+                db.session.query(Post).filter_by(id=draft_id).delete()
+    else:
+        post = db.session.query(Post).filter_by(id=post_id).one()
+        # This is either saving a draft of a new post,
+        # saving a draft of an old post,
+        # or saving an old post, who may or may not have drafts
+        #
+        # 1 saving a draft of a new post that was never saved
+        try:
+            draft = db.session.query(Draft).filter_by(draft_post_id=post_id).one()
+        except NoResultFound:
+            app.logger.debug("We are saving an old post, not any draft")
+            drafts = db.session.query(Draft).filter_by(original_post_id=post_id).all()
+            if drafts:
+                app.logger.debug("This old past has some drafts, lets delete them")
+                # We are saving an old post, who has many drafts, dont do anything
+                # DELETE ALL DRAFTS
+                app.logger.debug("We have old drafts, deleting now")
+                db.session.query(Post).filter(Post.id.in_([d.draft_post_id for d in drafts])).delete(synchronize_session=False)
+                db.session.query(Draft).filter_by(original_post_id=post_id).delete()
+        else:
+            # We are saving a draft of some post
+            if draft.original_post_id:
+                app.logger.debug("We are saving a draft of an old post who was saved")
+                # We are saving a draft of some old post. Old post should become the draft
+                # If user wants to publish this draft, set old post to unpublished
+                # We also have to change the old posts url-name and title so uniqueness remains
+                if submit == 'publish':
+                    u = str(uuid.uuid4())
+                    db.session.query(Post).filter_by(id=draft.original_post_id).update(
+                        {
+                            'is_published': False,
+                            'title': Post.title + u,
+                            'url_name': Post.url_name + u,
+                        }, synchronize_session=False
+                    )
+                    temp = draft.draft_post_id
+                    draft.draft_post_id = draft.original_post_id
+                    draft.original_post_id = temp
+
+            else:
+                # we are saving a draft of a new post who was never saved
+                # Just delete the old draft
+                app.logger.debug("We are saving a draft of a new post who was never saved")
+                db.session.query(Draft).filter_by(draft_post_id=post_id).delete()
+
+    return post
 
 @app.route('/admin/post/new/', methods=['GET', 'POST'])
 @app.route('/admin/post/<int:post_id>/', methods=['GET', 'POST'])
@@ -918,83 +989,8 @@ def admin_post_create(post_id=None):
             other_category_ids.append(main_category_id)
 
         dt = datetime.utcnow()
-        """
-        if post_id == '':
-            # new post
-            post = Post(creation_date=dt)  # title=title, content=content, creation_date=dt, last_modified_date=dt, category_id=category_id)
-        else:
-            post = db.session.query(Post).filter_by(id=post_id).one()
-        """
-        ## Draft logic
-        """
-        draft_id will always not be None, unless its a new post, user never paused for 5 seconds and then published.
 
-        We are now publishing a post and so we need to deal with the drafts.
-        If the post was a brand new post, we can simply delete the post whose id == draft id, and delete it from draft
-            table.
-        If we are saving a draft of a new post that was never saved, post_id is not None. Logic is the same as above:
-            delete the post whose id == draft id, and delete it from draft
-            Draft table will have a null original_post_id
-        If we are saving a draft of an old post that was never saved, post_id is not None.
-            For this we should set this draft post as the true post, and set the original old post as a draft ?
-            Draft table will not have a null original_post_id
-        If we are saving an old post, who has a draft, post_id is not None
-            Save this old post, dont touch the drafts
-
-        """
-        if post_id == '':
-            post = Post(creation_date=dt)
-            app.logger.debug("This is a brand new post")
-            # This is a brand new post. Just delete the draft
-            if draft_id:
-                # Delete saved draft if the post was never saved for real before
-                if draft_id != post_id:
-                    db.session.query(Post).filter_by(id=draft_id).delete()
-        else:
-            post = db.session.query(Post).filter_by(id=post_id).one()
-            # This is either saving a draft of a new post,
-            # saving a draft of an old post,
-            # or saving an old post, who may or may not have drafts
-            #
-            # 1 saving a draft of a new post that was never saved
-            try:
-                draft = db.session.query(Draft).filter_by(draft_post_id=post_id).one()
-            except NoResultFound:
-                app.logger.debug("We are saving an old post, not any draft")
-                drafts = db.session.query(Draft).filter_by(original_post_id=post_id).all()
-                if drafts:
-                    app.logger.debug("This old past has some drafts, lets delete them")
-                    # We are saving an old post, who has many drafts, dont do anything
-                    # DELETE ALL DRAFTS
-                    app.logger.debug("We have old drafts, deleting now")
-                    db.session.query(Post).filter(Post.id.in_([d.draft_post_id for d in drafts])).delete(synchronize_session=False)
-                    db.session.query(Draft).filter_by(original_post_id=post_id).delete()
-            else:
-                # We are saving a draft of some post
-                if draft.original_post_id:
-                    app.logger.debug("We are saving a draft of an old post who was saved")
-                    # We are saving a draft of some old post. Old post should become the draft
-                    # If user wants to publish this draft, set old post to unpublished
-                    # We also have to change the old posts url-name and title so uniqueness remains
-                    if submit == 'publish':
-                        u = str(uuid.uuid4())
-                        db.session.query(Post).filter_by(id=draft.original_post_id).update(
-                            {
-                                'is_published': False,
-                                'title': Post.title + u,
-                                'url_name': Post.url_name + u,
-                            }, synchronize_session=False
-                        )
-                        temp = draft.draft_post_id
-                        draft.draft_post_id = draft.original_post_id
-                        draft.original_post_id = temp
-
-                else:
-                    # we are saving a draft of a new post who was never saved
-                    # Just delete the old draft
-                    app.logger.debug("We are saving a draft of a new post who was never saved")
-                    db.session.query(Draft).filter_by(draft_post_id=post_id).delete()
-                    #db.session.query(Post).filter_by(id=draft_id).delete()
+        post = draft_logic(post_id, draft_id, submit)
 
 
 
@@ -1026,6 +1022,7 @@ def admin_post_create(post_id=None):
                                    parent_id=project_category_id)
             db.session.add(subcategory)
             db.session.flush()
+            make_project_category(subcategory)
             main_category_id = subcategory.id
             other_category_ids.append(main_category_id)
 

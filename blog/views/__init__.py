@@ -23,19 +23,19 @@ def try_except(api=False):
                 app.logger.exception("NoResultFound in {} for path {}".format(func.__name__, request.path))
                 if not api:
                     abort(404)
-                return jsonify({"error": ex.message}), 400
+                return jsonify({"error": str(ex)}), 400
             except UserError as ex:
                 db.session.rollback()
                 app.logger.exception("UserError in {} for path {}: {}".format(func.__name__, ex.message, request.path))
                 if not api:
                     abort(400)
-                return jsonify({"error": ex.message}), 400
+                return jsonify({"error": str(ex)}), 400
             except ServerError as ex:
                 db.session.rollback()
                 app.logger.exception("ServerError in {} for path {}: {}".format(func.__name__, ex.message, request.path))
                 if not api:
                     abort(400)
-                return jsonify({"error": ex.message}), 500
+                return jsonify({"error": str(ex)}), 500
             except NotFound as ex:
                 # This is kind of strange.
                 # If one route returns (not redirects) to another route who throws a NoResultFound
@@ -45,13 +45,13 @@ def try_except(api=False):
                 app.logger.exception("NotFound in {} for path {}".format(func.__name__, request.path))
                 if not api:
                     abort(404)
-                return jsonify({"error": ex.message}), 400
+                return jsonify({"error": str(ex)}), 400
             except Exception as ex:
                 db.session.rollback()
                 app.logger.exception("Exception in {} for path {}: {}".format(func.__name__, ex.message, request.path))
                 if not api:
                     abort(500)
-                return jsonify({"error": ex.message}), 500
+                return jsonify({"error": str(ex)}), 500
 
         return _try_except
     return real_decorator

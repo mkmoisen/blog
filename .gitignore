@@ -97,4 +97,5 @@ blog/local_settings.py
 # sqlite3
 blog/db.db
 ./db.db
+blog/test.db
 
