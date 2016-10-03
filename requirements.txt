@@ -9,3 +9,4 @@ pymysql
 requests
 pillow
 nose
+blinker
