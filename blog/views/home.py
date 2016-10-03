@@ -1434,14 +1434,12 @@ def post(post_id):
     else:
         # See if this post is the introduction post to a Project
         try:
-            project_post = db.session.query(ProjectPost).filter_by(post_id=post_id).one()
+            project_post = db.session.query(ProjectPost).filter_by(post_id=post_id).filter_by(order_no=0).one()
         except NoResultFound:
             canonical_url += 'blog/{}/'.format(url_name)
         else:
-            if project_post.order_no == 0:
-                # This is the introduction project post
-                canonical_url += 'projects/{}/'.format(url_name)
-                # No need to find category's description/url_name/etc as its enforced to be identical on post creation
+            canonical_url += 'projects/{}/'.format(url_name)
+            # No need to find category's description/url_name/etc as its enforced to be identical on post creation
 
     comment_name = session.pop('comment_name', '')
     comment_content = session.pop('comment_content', '')
