@@ -11,8 +11,12 @@ from passlib.hash import sha256_crypt
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 import uuid
+import nose
+from functools import wraps
 
 class TestBase(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         # Not sure why but this creates test.db in blog subdirectory
         db_path = os.path.join(os.path.split(__file__)[0], 'test.db')
@@ -75,6 +79,7 @@ def admin_login(func):
     This decorator logs into the admin and sets the test_client() on self as self.c
 
     """
+    @wraps(func)
     def _admin_login(self, *args, **kwargs):
         with app.test_client() as c:
             c.get('/admin/login/')
@@ -90,7 +95,11 @@ def admin_login(func):
             return func(self, *args, **kwargs)
     return _admin_login
 
-class TestDraftLogic(TestBase):
+from nose import tools
+
+@tools.istest
+class Test_DraftLogic(TestBase):
+    __test__ = True
     def setUp(self):
         TestBase.setUp(self)
         self.data = {
@@ -102,6 +111,7 @@ class TestDraftLogic(TestBase):
             'draft_id': '',
             'main_category_id': self.uncategorized_id,
         }
+
 
     @admin_login
     def test_lol(self):
@@ -333,4 +343,6 @@ class TestDraftLogic(TestBase):
 
 
 if __name__ == '__main__':
+    import nose
+    #nose.main()
     unittest.main()

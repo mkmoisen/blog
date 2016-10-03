@@ -98,4 +98,5 @@ blog/local_settings.py
 blog/db.db
 ./db.db
 blog/test.db
+test.db
 
