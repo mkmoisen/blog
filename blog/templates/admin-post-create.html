@@ -25,6 +25,7 @@
 {% block js %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 <script src="https://cdn.rawgit.com/showdownjs/showdown/1.4.3/dist/showdown.min.js"></script>
+<script src="/static/paste.js"></script>
 <script>
 $(document).ready(function(){
 
@@ -227,10 +228,29 @@ $(document).ready(function(){
      });
 
 
+    $('#demo-textarea').pastableTextarea();
+    $('#demo-textarea').on('pasteImage', function(ev, data) {
+        console.log("dataURL: " + data.dataURL);
+      console.log("width: " + data.width);
+      console.log("height: " + data.height);
+      console.log(data.blob);
+    }).on('pasteImageError', function(ev, data) {
+        alert('Oops: ' + data.message);
+          if(data.url){
+            alert('But we got its url anyway:' + data.url)
+          }
+    }).on('pasteText', function(ev, data) {
+        console.log("text: " + data.text);
+    });
+
 });
+
+
+
 </script>
 {% endblock %}
 {% block content %}
+    <textarea id="demo-textarea"></textarea>
     <header>
         <h1>Create new Post</h1>
         {% with messages = get_flashed_messages(with_categories=true) %}

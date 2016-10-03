@@ -761,6 +761,11 @@ def admin_category_create(category_id=None):
 
 
 
+@app.route('/api/upload-image2/', methods=['POST'])
+def upload_image2():
+    print request.form
+    print request.files
+
 @app.route('/api/upload-image/', methods=['POST'])
 @try_except(api=True)
 @login_required
