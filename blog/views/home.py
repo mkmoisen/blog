@@ -22,7 +22,12 @@ from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal_column
 from BeautifulSoup import BeautifulSoup
 import requests
-from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
+is_brew_db_enabled = True
+try:
+    from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
+except ImportError:
+    app.logger.warning("Local settings doesn't have brew database information")
+    is_brew_db_enabled = False
 import pymysql
 from collections import namedtuple
 import itertools
@@ -1830,6 +1835,8 @@ def sitemap():
 
 
 def brew_query(sql):
+    if not is_brew_db_enabled:
+        raise ServerError("Brew database hasn't been set up yet")
     connection = pymysql.connect(host=BREW_HOST, user=BREW_USERNAME, password=BREW_PASSWORD, db=BREW_DATABASE)
     cursor = connection.cursor()
     cursor.execute(sql)
