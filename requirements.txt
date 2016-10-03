@@ -7,3 +7,4 @@ BeautifulSoup
 html2text
 pymysql
 requests
+pillow

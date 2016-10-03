@@ -28,6 +28,9 @@ from collections import namedtuple
 import itertools
 import json
 from sqlalchemy import or_
+import base64
+from PIL import Image
+import io
 
 def login_required(f):
     @wraps(f)
@@ -725,7 +728,7 @@ def admin_category_create(category_id=None):
             resubmit = True
 
         # Check if category is a project and handle the category/project logic
-        if parent_id is not None:
+        if not resubmit and parent_id is not None:
             print "its not none!"
             projects_category_id = _get_project_category().id
             if parent_id == projects_category_id:
@@ -734,13 +737,15 @@ def admin_category_create(category_id=None):
 
 
         app.logger.debug("ABOUT TO COMMIT")
-        try:
-            db.session.commit()
-        except IntegrityError as ex:
-            flash(ex.message, 'error')
-            resubmit = True
+        if not resubmit:
+            try:
+                db.session.commit()
+            except IntegrityError as ex:
+                flash(ex.message, 'error')
+                resubmit = True
 
         if resubmit:
+            db.session.rollback()
             session['category_url_name'] = url_name
             session['category_description'] = description
             session['category_name'] = name
@@ -761,10 +766,34 @@ def admin_category_create(category_id=None):
 
 
 
-@app.route('/api/upload-image2/', methods=['POST'])
+
+@app.route('/api/upload-image-png/', methods=['POST'])
+@try_except(api=True)
 def upload_image2():
-    print request.form
-    print request.files
+    print request.json
+    data = request.json['data']
+    file_name = request.json['file_name']
+
+    file_name = secure_filename(file_name)
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+
+    if os.path.isfile(file_path):
+        raise UserError("A file with that name has already been saved")
+
+    data = data.split('data:image/png;base64,')[1]
+
+    image = Image.open(io.BytesIO(base64.b64decode(data)))
+
+    image.save(file_path, 'JPEG')
+
+    markdown = '\n\n' + '![{file_name}](/static/images/{file_name}) \n'.format(file_name=file_name)
+
+    # http://stackoverflow.com/a/6966225/1391717
+
+    print data
+
+    return jsonify({"markdown": markdown})
 
 @app.route('/api/upload-image/', methods=['POST'])
 @try_except(api=True)

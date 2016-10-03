@@ -69,6 +69,60 @@ $(document).ready(function(){
             });
         });
 
+        $('#post-content').pastableTextarea();
+        $('#post-content').on('pasteImage', function(ev, data) {
+            console.log("dataURL: " + data.dataURL);
+            console.log("width: " + data.width);
+            console.log("height: " + data.height);
+            console.log(data.blob);
+
+            var content = {'data': data.dataURL};
+
+            var file_name = prompt("Enter a unique file name", "matthew_moisen_foo.jpg");
+            content['file_name'] = file_name;
+            console.log(file_name);
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/upload-image-png/',
+                data: JSON.stringify(content),
+                contentType: 'application/json',
+                cache: false,
+                processData: false,
+                async: false,
+                dataType: 'json',
+                success: function(data) {
+                    console.log('Success!');
+                    console.log(data);
+                    $('#image-messages li:first').text('Image saved successfully').attr("class", "success");
+                    $('#image-messages').show().hide(3000);
+
+                    var post_content = $('#post-content').val() + data['markdown'];
+                    console.log(post_content);
+                    $('#post-content').val(post_content);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    var status = jqXHR.status;
+                    var responseJSON = jqXHR.responseJSON;
+                    console.log(status);
+                    console.log(responseJSON);
+
+                    $('#image-messages li:first').text(responseJSON['error']).attr("class", "error");
+                    $('#image-messages').show();
+
+                }
+            });
+
+
+        }).on('pasteImageError', function(ev, data) {
+            alert('Oops: ' + data.message);
+            if(data.url){
+                  alert('But we got its url anyway:' + data.url)
+            }
+        }).on('pasteText', function(ev, data) {
+            console.log("text: " + data.text);
+        });
+
 
 
         do_content = function(content, url, success_call) {
@@ -228,20 +282,7 @@ $(document).ready(function(){
      });
 
 
-    $('#demo-textarea').pastableTextarea();
-    $('#demo-textarea').on('pasteImage', function(ev, data) {
-        console.log("dataURL: " + data.dataURL);
-      console.log("width: " + data.width);
-      console.log("height: " + data.height);
-      console.log(data.blob);
-    }).on('pasteImageError', function(ev, data) {
-        alert('Oops: ' + data.message);
-          if(data.url){
-            alert('But we got its url anyway:' + data.url)
-          }
-    }).on('pasteText', function(ev, data) {
-        console.log("text: " + data.text);
-    });
+
 
 });
 
@@ -250,7 +291,6 @@ $(document).ready(function(){
 </script>
 {% endblock %}
 {% block content %}
-    <textarea id="demo-textarea"></textarea>
     <header>
         <h1>Create new Post</h1>
         {% with messages = get_flashed_messages(with_categories=true) %}
