@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import BadRequest
 from functools import wraps
-from . import try_except, UserError, ServerError
+from . import try_except, UserError, ServerError, check_admin_status
 from blog.models import *
 import markdown
 from passlib.hash import sha256_crypt
@@ -123,9 +123,6 @@ def home():
     project_intro_posts = db.session.query(ProjectPost).filter_by(order_no=0)
     project_intro_post_ids = [p.post_id for p in project_intro_posts]
 
-    is_admin = check_admin_status()
-
-
     posts = [
         {
             'title': p.title,
@@ -139,7 +136,7 @@ def home():
         }
         for p, category in posts
     ]
-    return render_template('home.html', posts=posts, is_admin=is_admin)
+    return render_template('home.html', posts=posts)
 
 @app.route('/admin/post/', methods=['GET'])
 @try_except()
@@ -302,10 +299,7 @@ def category():
     app.logger.debug("categories is")
     app.logger.debug(categories)
 
-    is_admin = check_admin_status()
-
-
-    return render_template('category.html', categories=categories, is_admin=is_admin, title=title)
+    return render_template('category.html', categories=categories, title=title)
 
 def _get_project_category():
     return db.session.query(Category).filter_by(name="Projects").one()
@@ -340,10 +334,7 @@ def get_projects():
     app.logger.debug("categories is")
     app.logger.debug(categories)
 
-    is_admin = check_admin_status()
-
-
-    return render_template('category.html', categories=categories, is_admin=is_admin, title=title)
+    return render_template('category.html', categories=categories, title=title)
 
 @app.route('/projects/<url_name>/', methods=['GET'])
 @try_except()
@@ -424,8 +415,6 @@ def category_posts_by_name(url_name):
         .order_by(desc(Post.creation_date)) \
         .all()
 
-    is_admin = check_admin_status()
-
     project_introduction_posts = db.session.query(ProjectPost).filter_by(order_no=0)
 
     def make_url(post):
@@ -449,7 +438,7 @@ def category_posts_by_name(url_name):
     ]
 
     return render_template('category-posts.html', posts=posts, title=category_name, category_name=category_name, category_id=category_id,
-                           is_admin=is_admin, category_url_name=category_url_name, category_description=category_description)
+                           category_url_name=category_url_name, category_description=category_description)
 
 @app.route('/admin/', methods=['GET'])
 @try_except()
@@ -1201,8 +1190,6 @@ def mark_post_as_draft(post_id):
 
     return redirect(url_for(last_url, post_id=post_id))
 
-def check_admin_status():
-    return 'is_admin' in session and session['is_admin']
 
 
 def text_to_number(val):
@@ -1470,7 +1457,6 @@ def post(post_id):
     table_of_contents = get_project_table_of_contents(post)
 
     return render_template('post.html',
-                           is_admin=is_admin,
                            canonical_url=canonical_url,
                            title=title,
                            content=content,

@@ -150,6 +150,9 @@
         <li><a href="/brew/">Brewery</a></li>
         {% block tabs %}
         {% endblock %}
+        {% if is_admin %}
+        <li><a href="/admin/">Admin</a></li>
+        {% endif %}
     </ul>
 
 

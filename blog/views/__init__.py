@@ -1,6 +1,6 @@
 from blog import app, db
 from functools import wraps
-from flask import jsonify, abort, render_template, request
+from flask import jsonify, abort, render_template, request, session
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
 
@@ -66,12 +66,17 @@ def server_error(error):
     app.logger.debug("I AM 500 LOL")
     return render_template('500.html'), 500
 
+def check_admin_status():
+    return 'is_admin' in session and session['is_admin']
+
+
 @app.context_processor
 def inject_global_vars():
     return {
         'web_protocol': app.config['WEB_PROTOCOL'],
         'domain': app.config['DOMAIN'],
         'google_site_verification': app.config['GOOGLE_SITE_VERIFICATION'],
+        'is_admin': check_admin_status(),
     }
 
 '''
