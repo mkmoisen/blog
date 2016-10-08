@@ -57,7 +57,6 @@ def blog():
     if 'p' not in request.args:
         return home()
 
-    app.logger.warn("Wordpress on path {}".format(request.path))
     # This must be a old wordpress URL
     wordpress = db.session.query(Wordpress).filter_by(type='guid').filter_by(val=request.args['p']).one()
     #p = db.session.query(Post).filter_by(wordpress_guid=request.args['p']).one()
@@ -68,7 +67,6 @@ def blog():
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
-    app.logger.warn("Wordpress on path {}".format(request.path))
     wordpress_url = first_cat + u'/' + second_cat + u'/' + url_name + u'/'
 
     #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
@@ -81,7 +79,6 @@ def wordpress_full_url(first_cat, second_cat, url_name):
 @app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
 @try_except()
 def wordpress_images(year, month, path):
-    app.logger.warn("Wordpress on path {}".format(request.path))
     image_url = u'wp-content/uploads/{}/{}/{}'.format(year, month, path)
 
     wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
@@ -1636,7 +1633,7 @@ def admin_comment_delete(comment_id):
 @try_except()
 @login_required
 def admin_log():
-    logs = db.session.query(Log)
+    logs = db.session.query(Log).order_by(Log.creation_date.desc())
 
     logs = [
         {
