@@ -6,6 +6,7 @@ if [ $# -eq 0 ]
 fi
 
 git pull origin $branch
+pip install -r requirements.txt
 sudo systemctl stop blog
 python db_backup.py -db /apps/blog/blog/blog/db.db -b /apps/backups/
 sudo systemctl start blog
