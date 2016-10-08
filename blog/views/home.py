@@ -761,6 +761,7 @@ def admin_category_create(category_id=None):
 @app.route('/api/upload-image-png/', methods=['POST'])
 @try_except(api=True)
 @login_required
+@csrf(request_type='json')
 def upload_image2():
     print request.json
     data = request.json['data']
@@ -790,6 +791,7 @@ def upload_image2():
 @app.route('/api/upload-image/', methods=['POST'])
 @try_except(api=True)
 @login_required
+@csrf(request_type='json')
 def upload_image():
     if not request.files:
         raise UserError("File is empty")
@@ -1207,6 +1209,7 @@ def uuid_if_empty(val):
 @app.route('/api/save-draft/', methods=['POST'])
 @try_except(api=True)
 @login_required
+@csrf(request_type='json')
 def save_draft():
     data = request.json
     app.logger.debug("data is {}".format(data))

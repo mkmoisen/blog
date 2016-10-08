@@ -21,6 +21,13 @@ class SqliteSequence(db.Model):
     __abstract__ = True
 '''
 
+class DBSession(db.Model):
+    sid = db.Column(db.String(50), primary_key=True)
+    data = db.Column(db.Text)
+    expiration_date = db.Column(db.DateTime)
+    __tablename__ = 'session'
+
+
 class Log(db.Model):
     # http://docs.pylonsproject.org/projects/pyramid_cookbook/en/latest/logging/sqlalchemy_logger.html
     id = db.Column(db.Integer, primary_key=True)

@@ -137,6 +137,14 @@ def generate_csrf_token():
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
+
+
+
+
+
+
+
+
 '''
 def try_except(func):
     @wraps(func)

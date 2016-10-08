@@ -30,8 +30,15 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'images')
 
 db = SQLAlchemy(app)
 
+
+
+
 from blog.views import *
 from blog.models import Log
+
+from blog.sqlalchemy_session import SqlAlchemySessionInterface
+app.session_interface = SqlAlchemySessionInterface(db)
+
 class SQLAlchemyHandler(logging.Handler):
     # http://docs.pylonsproject.org/projects/pyramid_cookbook/en/latest/logging/sqlalchemy_logger.html
     def emit(self, record):
