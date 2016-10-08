@@ -9,7 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import BadRequest
 from functools import wraps
-from . import try_except, UserError, ServerError, check_admin_status
+from . import try_except, UserError, ServerError, check_admin_status, csrf
 from blog.models import *
 import markdown
 from passlib.hash import sha256_crypt
@@ -760,6 +760,7 @@ def admin_category_create(category_id=None):
 
 @app.route('/api/upload-image-png/', methods=['POST'])
 @try_except(api=True)
+@login_required
 def upload_image2():
     print request.json
     data = request.json['data']
@@ -1205,6 +1206,7 @@ def uuid_if_empty(val):
 
 @app.route('/api/save-draft/', methods=['POST'])
 @try_except(api=True)
+@login_required
 def save_draft():
     data = request.json
     app.logger.debug("data is {}".format(data))

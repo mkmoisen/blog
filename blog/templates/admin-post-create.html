@@ -29,6 +29,8 @@
 <script>
 $(document).ready(function(){
 
+        var csrf_token = "{{ csrf_token() }}"
+
         $('#image-messages').hide();
 
         $('#upload-image-btn').click(function() {
@@ -126,6 +128,7 @@ $(document).ready(function(){
 
 
         do_content = function(content, url, success_call) {
+            content['_csrf_token'] = "{{csrf_token()}}";
             $.ajax({
                 type: 'POST',
                 url: url,

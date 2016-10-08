@@ -3,6 +3,7 @@ from functools import wraps
 from flask import jsonify, abort, render_template, request, session
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
+import uuid
 
 date_format = '%Y-%m-%dT%H:%M:%S.%fZ'
 
@@ -78,6 +79,63 @@ def inject_global_vars():
         'google_site_verification': app.config['GOOGLE_SITE_VERIFICATION'],
         'is_admin': check_admin_status(),
     }
+
+
+def _check_referrer():
+    is_success = True
+    if not request.referrer:
+        is_success = False
+
+    if is_success:
+        refferer_uri = urlparse(request.referrer)
+        good_uri = urlparse(app.config['WEB_PROTOCOL'] + app.config['DOMAIN'])
+
+        if refferer_uri.scheme != good_uri.scheme:
+            is_success = False
+
+        if refferer_uri.hostname != good_uri.hostname:
+            is_success = False
+
+        if refferer_uri.port != good_uri.port:
+            is_success = False
+
+    if not is_success:
+        app.logger.error("CSRF Violation from remote user {} at referrer {}".format(request.remote_addr, request.referrer))
+
+    return is_success
+
+
+def _check_csrf(request_type):
+    true_csrf = session.pop('csrf_token', None)
+    if not true_csrf or true_csrf != getattr(request, request_type).get('_csrf_token'):
+        return False
+
+    return True
+
+
+from urlparse import urlparse
+def csrf(request_type='json'):
+    if request_type not in ('json', 'form'):
+        raise ServerError("csrf request_type must be either json or form, not {}".format(request_type))
+    def real_csrf(func):
+        @wraps(func)
+        def _csrf(*args, **kwargs):
+            print "NOOB SESSION IS ", session
+            if not _check_referrer() or not _check_csrf(request_type):
+                app.logger.exception("Csrf failure in {}".format(func.__name__))
+                abort(400)
+
+            return func(*args, **kwargs)
+
+        return _csrf
+    return real_csrf
+
+def generate_csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = str(uuid.uuid4())
+    return session['csrf_token']
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 '''
 def try_except(func):
