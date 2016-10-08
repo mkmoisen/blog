@@ -117,6 +117,8 @@ class Test_DraftLogic(TestBase):
     def test_lol(self):
         with get_context_variables(app) as contexts:
             r = self.c.get('/admin/post/new/', follow_redirects=True)
+            csrf = session['csrf_token']
+            print "hai i am csrf", csrf
             context = next(contexts)
             self.assertEquals(context['post_id'], '')
             self.assertEquals(context['draft_id'], '')
@@ -129,12 +131,18 @@ class Test_DraftLogic(TestBase):
             elif draft_id != '':
                 u = draft_id
             r = self.c.get('/admin/post/{}/'.format(u), follow_redirects=True)
+            self.csrf_token = session['csrf_token']
             context = next(contexts)
             self.assertEquals(context['post_id'], post_id)
             self.assertEquals(context['draft_id'], draft_id)
 
     def _ajax_save_draft(self, data):
-        r = self.c.post('/api/save-draft/', data=json.dumps(data), content_type='application/json', follow_redirects=True)
+        print "session in ajax save draft is", session
+        data['_csrf_token'] = self.csrf_token
+        r = self.c.post('/api/save-draft/', data=json.dumps(data), content_type='application/json',
+                        follow_redirects=True, base_url='http://localhost:5000/', environ_base={
+                'HTTP_REFERER': 'http://localhost:5000/',
+            })
         r = json.loads(r.data)
         return r['draft_id']
 
@@ -173,11 +181,14 @@ class Test_DraftLogic(TestBase):
 
         # Get /admin/post/new first
         self._assert_get_admin_post_new_variables(post_id='', draft_id='')
+        print "session in tests is ", session
 
         # Save first draft
         draft_id = self._ajax_save_draft(self.data)
         self.data['draft_id'] = draft_id
         self._assert_saved_draft_brand_new(draft_id, title='test')
+
+        print "session before save draft again is ", session
 
 
         # Save draft again

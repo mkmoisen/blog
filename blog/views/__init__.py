@@ -106,8 +106,10 @@ def _check_referrer():
 
 
 def _check_csrf(request_type):
-    true_csrf = session.pop('csrf_token', None)
-    if not true_csrf or true_csrf != getattr(request, request_type).get('_csrf_token'):
+    true_csrf = session.get('csrf_token', None)
+    given_csrf = getattr(request, request_type).get('_csrf_token')
+    if not true_csrf or true_csrf != given_csrf:
+        app.logger.error("CSRF Violation: true is {} but given is {}".format(true_csrf, given_csrf))
         return False
 
     return True
