@@ -47,7 +47,7 @@ def stop_blog(environment):
 
 def backup_db(environment):
     db = '/apps/stage/blog/blog/db.db'
-    b = '/apps/backups/stage/'
+    b = '/apps/backups_stage/'
     if environment == 'prod':
         db = '/apps/blog/blog/blog/db.db'
         b = '/apps/backups/'
