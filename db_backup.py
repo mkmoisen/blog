@@ -37,8 +37,8 @@ logger.addHandler(handler2)
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-db", "--database")
-parser.add_argument("-b", "--backup_dir")
+parser.add_argument("-db", "--database", required=True)
+parser.add_argument("-b", "--backup_dir", required=True)
 parser.add_argument("-dt", "--datetime", default=None)
 
 def get_hash(file_path):
