@@ -6,6 +6,7 @@ import subprocess
 import sys
 import logging
 import time
+from blog import db
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -56,6 +57,9 @@ def backup_db(environment):
     if code != 0:
         raise ValueError(stderr)
 
+def ddl():
+    db.create_all()
+
 def nosetests():
     command = 'nosetests'
     stdout, stderr, code = proc(command)
@@ -83,6 +87,7 @@ def main():
     pip_install()
     stop_blog(args.environment)
     backup_db(args.environment)
+    ddl()
     nosetests()
     start_blog(args.environment)
     time.sleep(2)
