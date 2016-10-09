@@ -12,15 +12,15 @@ logger.setLevel(logging.DEBUG)
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-e", "--environment", choices=['stage', 'prod'])
-parser.add_argument("-b", "--branch")
+parser.add_argument("-e", "--environment", choices=['stage', 'prod'], required=True)
+parser.add_argument("-b", "--branch", default='master')
 
 
 def proc(command):
     command = command.split(' ')
     p = subprocess.Popen(command, stdout=subprocess.PIPE)
     stdout, stderr = p.communicate()
-    return stdout, stderr, proc.returncode
+    return stdout, stderr, p.returncode
 
 def git_pull(branch):
     command = 'git pull origin {}'.format(branch)
