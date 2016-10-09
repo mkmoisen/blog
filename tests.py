@@ -349,6 +349,17 @@ class Test_DraftLogic(TestBase):
         self.assertEquals(post.is_published, True)
 
 
+class TestCanonicalUrls(TestBase):
+    """
+    This test suit tests all the URLs to make sure they are proper
+    A regular post should be /blog/<url_name>/
+    A resume is /blog/resume/
+    The very first/introduction post of a Project post should be /projects/<url_name>/
+    The 2nd through nth post of a Project post should be /blog/<url_name>
+    """
+
+    def test_normal(self):
+        pass
 
 
 
