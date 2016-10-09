@@ -138,10 +138,11 @@ class Test_DraftLogic(TestBase):
 
     def _ajax_save_draft(self, data):
         print "session in ajax save draft is", session
+        http_ref = app.config['WEB_PROTOCOL'] + app.config['DOMAIN'] + "/"
         data['_csrf_token'] = self.csrf_token
         r = self.c.post('/api/save-draft/', data=json.dumps(data), content_type='application/json',
-                        follow_redirects=True, base_url='http://localhost:5000/', environ_base={
-                'HTTP_REFERER': 'http://localhost:5000/',
+                        follow_redirects=True, base_url=http_ref, environ_base={
+                'HTTP_REFERER': http_ref,
             })
         r = json.loads(r.data)
         return r['draft_id']
