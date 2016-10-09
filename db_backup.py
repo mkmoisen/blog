@@ -31,7 +31,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 handler2 = logging.handlers.RotatingFileHandler(os.path.join(os.path.split(os.path.abspath(__file__))[0], 'db_backup.log'),
-                                        maxBytes=10*1024*1024, backupCount=2)
+                                                maxBytes=10*1024*1024, backupCount=2)
 handler2.setFormatter(formatter)
 logger.addHandler(handler2)
 
@@ -50,8 +50,10 @@ def get_hash(file_path):
 
     return hash_sha1.hexdigest()
 
+
 def _file_to_date(file_name):
     return file_name.split('_', 1)[1][:-4]
+
 
 def find_latest_backup(backup_dir):
     max = None
@@ -64,12 +66,14 @@ def find_latest_backup(backup_dir):
 
     return last_backup
 
+
 def get_args():
     args = parser.parse_args()
     if args.datetime is None:
         args.datetime = datetime.utcnow()
 
     return args
+
 
 def backup(args):
     if not os.path.isdir(args.backup_dir):
@@ -99,11 +103,13 @@ def backup(args):
         connection.rollback()
         raise
 
+
 def main():
     args = get_args()
     logger.info(args)
 
     backup(args)
+
 
 if __name__ == '__main__':
     try:

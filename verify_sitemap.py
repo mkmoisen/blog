@@ -2,6 +2,7 @@ from xml.etree import ElementTree
 from blog import app
 import sys
 import requests
+import sys
 from BeautifulSoup import BeautifulStoneSoup as Soup
 
 def analyze_site_map():
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     try:
         exit = main()
     except Exception as ex:
-        print ex
+        sys.stderr.write(str(ex))
         exit = 1
 
     sys.exit(exit)

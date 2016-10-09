@@ -5,6 +5,7 @@ import argparse
 import subprocess
 import sys
 import logging
+import time
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def main():
     backup_db(args.environment)
     nosetests()
     start_blog(args.environment)
+    time.sleep(2)
     verify_sitemap()
 
 
