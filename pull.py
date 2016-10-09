@@ -77,15 +77,19 @@ def verify_sitemap():
         raise ValueError(stderr)
 
 def main():
+    args = parser.parse_args()
+    git_pull(args.branch)
+    pip_install()
+    stop_blog(args.environment)
+    backup_db(args.environment)
+    nosetests()
+    start_blog(args.environment)
+    verify_sitemap()
+
+
+if __name__ == "__main__":
     try:
-        args = parser.parse_args()
-        git_pull(args.branch)
-        pip_install()
-        stop_blog(args.environment)
-        backup_db(args.environment)
-        nosetests()
-        start_blog(args.environment)
-        verify_sitemap()
+        main()
     except Exception as ex:
         logger.exception("Failed: {}".format(ex))
         sys.exit(1)
