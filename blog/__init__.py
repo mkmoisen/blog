@@ -2,7 +2,7 @@ from flask import Flask, request, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
-from settings import server_config
+from .settings import server_config
 import logging
 import os
 import traceback

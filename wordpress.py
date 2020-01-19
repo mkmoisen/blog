@@ -72,8 +72,8 @@ for result in post_results:
     try:
         r = requests.get(wp_post.guid)
     except requests.RequestException as ex:
-        print "EXCEPTION ", ex.message
-        print "guid was ", wp_post.guid
+        print("EXCEPTION ", ex.message)
+        print("guid was ", wp_post.guid)
         raise
 
     wordpress_prefix = 'http://matthewmoisen.com/blog/'
@@ -104,10 +104,10 @@ for result in post_results:
     posts[wp_post.id] = post
 
 
-db.session.bulk_save_objects(posts.values(), return_defaults=True)
+db.session.bulk_save_objects(list(posts.values()), return_defaults=True)
 
 category_posts = []
-for p in posts.values():
+for p in list(posts.values()):
     category_post = CategoryPost(post_id=p.id, category_id=uncategorized_id)
     category_posts.append(category_post)
 
@@ -115,7 +115,7 @@ db.session.bulk_save_objects(category_posts)
 
 # Download imagees to static folder
 s = datetime.now()
-for image, redirect in images.iteritems():
+for image, redirect in images.items():
     #print title, image, os.path.split(image)[1]
     if image.startswith('data:'):
         content = base64.b64decode(image.replace('data:image/png;base64,', ''))
@@ -138,7 +138,7 @@ for image, redirect in images.iteritems():
             f.write(content)
 e = datetime.now()
 
-print "time to save images: {}".format(e - s)
+print("time to save images: {}".format(e - s))
 
 db.session.bulk_save_objects(wordpresses)
 
@@ -147,9 +147,9 @@ for result in sql(seo_sql):
     try:
         posts[wp_meta.post_id].description = wp_meta.meta_value
     except KeyError as ex:
-        print ex
+        print(ex)
 
-db.session.bulk_save_objects(posts.values(), return_defaults=True)
+db.session.bulk_save_objects(list(posts.values()), return_defaults=True)
 
 
 for result in sql(comment_sql):

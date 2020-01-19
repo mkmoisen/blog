@@ -3,7 +3,7 @@ flask_sqlalchemy
 markdown
 passlib
 validate_email
-BeautifulSoup
+BeautifulSoup4
 html2text
 pymysql
 requests

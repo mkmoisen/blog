@@ -67,7 +67,7 @@ def blog():
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
-    wordpress_url = first_cat + u'/' + second_cat + u'/' + url_name + u'/'
+    wordpress_url = first_cat + '/' + second_cat + '/' + url_name + '/'
 
     #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
     #url_name = p.url_name
@@ -79,7 +79,7 @@ def wordpress_full_url(first_cat, second_cat, url_name):
 @app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
 @try_except()
 def wordpress_images(year, month, path):
-    image_url = u'wp-content/uploads/{}/{}/{}'.format(year, month, path)
+    image_url = 'wp-content/uploads/{}/{}/{}'.format(year, month, path)
 
     wordpress = db.session.query(Wordpress).filter_by(type='image').filter_by(val=image_url).one()
     url_name = wordpress.redirect
@@ -191,7 +191,7 @@ def add_node(category, tree):
 
 def print_tree(tree, depth=0):
     for child in tree:
-        print '    ' * depth + child['category'].name
+        print('    ' * depth + child['category'].name)
         print_tree(child['children'], depth + 1)
 
 
@@ -279,7 +279,7 @@ def category():
     project_category_ids = [project_category.category_id for project_category in project_categories]
 
     for depth, cat in iter_tree(tree):
-        print cat
+        print(cat)
 
     categories = [
         {
@@ -509,8 +509,8 @@ def admin_create():
     db.session.add(projects)
     db.session.flush()
 
-    post = Post(user_id=user.id, title=u"Résumé", url_name='resume', description=u'Résumé for Matthew Moisen',
-                content=u'My Résumé', is_published=True,
+    post = Post(user_id=user.id, title="Résumé", url_name='resume', description='Résumé for Matthew Moisen',
+                content='My Résumé', is_published=True,
                 is_commenting_disabled=True, category_id=uncategorized.id)
     db.session.add(post)
     db.session.flush()
@@ -613,17 +613,17 @@ def make_project_category(category):
     projects_category_id = _get_project_category().id
     if parent_id == projects_category_id:
     """
-    print "parent id is project category!"
+    print("parent id is project category!")
     try:
         project = db.session.query(Project).filter_by(category_id=category.id).one()
     except NoResultFound:
-        print "no project found, adding it now"
+        print("no project found, adding it now")
         # This is a brand new project category, no updates. Add to project table
         project = Project(category_id=category.id)
         db.session.add(project)
     else:
         # This category is already a project and we are updating.
-        print "we found a project oh no"
+        print("we found a project oh no")
         try:
             # Search for the introduction to make updates
             project_post = db.session.query(Post).join(ProjectPost) \
@@ -631,7 +631,7 @@ def make_project_category(category):
                 .filter(ProjectPost.project_id == project.id) \
                 .one()
         except NoResultFound:
-            print "we found a project post"
+            print("we found a project post")
             # User is modifying the category/project before he added any posts
             pass
         else:
@@ -720,10 +720,10 @@ def admin_category_create(category_id=None):
 
         # Check if category is a project and handle the category/project logic
         if not resubmit and parent_id is not None:
-            print "its not none!"
+            print("its not none!")
             projects_category_id = _get_project_category().id
             if parent_id == projects_category_id:
-                print "parent id is project category!"
+                print("parent id is project category!")
                 make_project_category(category)
 
 
@@ -763,7 +763,7 @@ def admin_category_create(category_id=None):
 @login_required
 @csrf(request_type='json')
 def upload_image2():
-    print request.json
+    print(request.json)
     data = request.json['data']
     file_name = request.json['file_name']
 
@@ -784,7 +784,7 @@ def upload_image2():
 
     # http://stackoverflow.com/a/6966225/1391717
 
-    print data
+    print(data)
 
     return jsonify({"markdown": markdown})
 
@@ -1005,7 +1005,7 @@ def admin_post_create(post_id=None):
         uncategorized_id = get_uncategorized_id()
         main_category_id = int(main_category_id)
 
-        other_category_ids = map(int, other_category_ids)
+        other_category_ids = list(map(int, other_category_ids))
 
         # If user forgot to select a main category id, pick the first one from other categories
         if other_category_ids and main_category_id == uncategorized_id:
@@ -1673,8 +1673,8 @@ number_words = {
 operators = ['+', '-', '*']
 import random
 def math_spam():
-    number = number_words.keys()[random.randrange(1, len(number_words) + 1) - 1]
-    number_to_word = number_words.keys()[random.randrange(1, len(number_words) + 1) - 1]
+    number = list(number_words.keys())[random.randrange(1, len(number_words) + 1) - 1]
+    number_to_word = list(number_words.keys())[random.randrange(1, len(number_words) + 1) - 1]
     word = number_words[number_to_word]
 
     operator = random.choice(operators)
@@ -1714,7 +1714,7 @@ def spam_check(input_spam_check):
     return resubmit
 
 
-site_map_url_template = u'''<url>
+site_map_url_template = '''<url>
 <loc>{url}</loc>
 <lastmod>{last_modified_time}</lastmod>
 <changefreq>{change_frequency}</changefreq>
@@ -1744,7 +1744,7 @@ def ping_google_sitemap():
         if r.status_code != 200:
             app.logger.error("Failed to ping google sitemap:\n{}\n\nurl was {}".format(r.text, url))
 
-def make_url(url, last_modified_time, change_frequency=u'weekly', priority=u'0.5'):
+def make_url(url, last_modified_time, change_frequency='weekly', priority='0.5'):
     return site_map_url_template.format(
         url=url, last_modified_time=last_modified_time, change_frequency=change_frequency, priority=priority
     )
@@ -1752,7 +1752,7 @@ def make_url(url, last_modified_time, change_frequency=u'weekly', priority=u'0.5
 from xml.etree import ElementTree
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
-    template = u'''<?xml version="1.0" encoding="UTF-8"?>
+    template = '''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {urls}
 </urlset>
@@ -1764,12 +1764,12 @@ def sitemap():
     no_max = datetime.utcnow().strftime(DATE_FORMAT)
 
     single_pages = [
-        ('home', db.session.query(func.max(Post.last_modified_date)).select_from(Post), u'', u'1.0'),
-        ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), u'blog/category/', u'0.5'),
+        ('home', db.session.query(func.max(Post.last_modified_date)).select_from(Post), '', '1.0'),
+        ('category', db.session.query(func.max(Category.last_modified_date)).select_from(Category), 'blog/category/', '0.5'),
         ('projects', db.session.query(func.max(Post.last_modified_date)).select_from(Post).join(Category) \
-            .filter(Category.name == 'Projects'), u'projects/', u'0.5'),
+            .filter(Category.name == 'Projects'), 'projects/', '0.5'),
         ('resume', db.session.query(func.max(Post.last_modified_date)).select_from(Post) \
-            .filter(Post.url_name == 'resume'), u'resume/', u'0.5')
+            .filter(Post.url_name == 'resume'), 'resume/', '0.5')
     ]
 
     for name, q, url_postfix, priority in single_pages:
@@ -1779,10 +1779,10 @@ def sitemap():
             app.logger.exception("Failed to create sitemap url for {}! {}".format(name, ex.message))
         else:
             if max:
-                max = unicode(max.strftime(DATE_FORMAT))
+                max = str(max.strftime(DATE_FORMAT))
             else:
                 max = no_max
-            urls.append(make_url(u'{}{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix), last_modified_time=max,
+            urls.append(make_url('{}{}{}'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix), last_modified_time=max,
                                  priority=priority))
 
     project_posts = db.session.query(ProjectPost).filter_by(order_no=0).all()
@@ -1793,32 +1793,32 @@ def sitemap():
             .filter(Post.is_published == True):
         if url_name != 'resume':
             # Prevent resume from given a url of /blog/resume and use the /resume/ instead
-            url_postfix = unicode(url_name)
-            last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-            u = u'{}{}blog/{}/'
+            url_postfix = str(url_name)
+            last_modified_time = str(last_modified_date.strftime(DATE_FORMAT))
+            u = '{}{}blog/{}/'
             if post_id in project_post_ids:
-                u = u'{}{}projects/{}/'
+                u = '{}{}projects/{}/'
             urls.append(make_url(u.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
-                                 last_modified_time=last_modified_time, priority=u'0.5'))
+                                 last_modified_time=last_modified_time, priority='0.5'))
 
     # Now to categories
     for url_name, last_modified_date in db.session.query(Category.url_name, Category.last_modified_date):
         if url_name != 'projects':
             # Prevent projects from given a url of /blog/category/projects and use the /projects/ instead
-            url_postfix = unicode(url_name)
-            last_modified_time = unicode(last_modified_date.strftime(DATE_FORMAT))
-            urls.append(make_url(u'{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
-                                 last_modified_time=last_modified_time, priority=u'0.5'))
+            url_postfix = str(url_name)
+            last_modified_time = str(last_modified_date.strftime(DATE_FORMAT))
+            urls.append(make_url('{}{}blog/category/{}/'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN'], url_postfix),
+                                 last_modified_time=last_modified_time, priority='0.5'))
 
-    xml = template.format(urls=u''.join(urls))
-    print xml
+    xml = template.format(urls=''.join(urls))
+    print(xml)
     try:
         ElementTree.fromstring(str(xml))
     except ElementTree.ParseError:
         app.logger.critical("Sitemap XML IS INVALID!!!")
         # TODO Should probably email myself
 
-    return template.format(urls=u''.join(urls))
+    return template.format(urls=''.join(urls))
 
 
 
@@ -1865,7 +1865,7 @@ def average_temps(dt, temps):
         grouped[key] = [g for g in group]
 
     avg_temps = []
-    for key, group in grouped.iteritems():
+    for key, group in grouped.items():
         count = 0.0
         sum = 0.0
         for temp in group:
@@ -1909,7 +1909,7 @@ def brew():
             minutes = 60 * 24
 
         try:
-            print name_query.format(minutes=minutes)
+            print(name_query.format(minutes=minutes))
             name_rows = brew_query(name_query.format(minutes=minutes))
         except Exception as ex:
             db.session.rollback()
@@ -1928,7 +1928,7 @@ def brew():
             count += 1
 
         try:
-            print fermentor_query.format(minutes=minutes)
+            print(fermentor_query.format(minutes=minutes))
             temperature_rows = brew_query(fermentor_query.format(minutes=minutes))
         except Exception as ex:
             db.session.rollback()
@@ -1946,7 +1946,7 @@ def brew():
 
         # Denormalize and average the temperature
         data = []
-        for dt, temps in grouped.iteritems():
+        for dt, temps in grouped.items():
             if len(temps) <= len(names):
                 avg_temps = average_temps(dt, temps)
                 make_google_chart_row(dt, avg_temps, data, name_map)

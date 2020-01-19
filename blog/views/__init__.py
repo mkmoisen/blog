@@ -115,14 +115,14 @@ def _check_csrf(request_type):
     return True
 
 
-from urlparse import urlparse
+from urllib.parse import urlparse
 def csrf(request_type='json'):
     if request_type not in ('json', 'form'):
         raise ServerError("csrf request_type must be either json or form, not {}".format(request_type))
     def real_csrf(func):
         @wraps(func)
         def _csrf(*args, **kwargs):
-            print "NOOB SESSION IS ", session
+            print("NOOB SESSION IS ", session)
             if not _check_referrer() or not _check_csrf(request_type):
                 app.logger.exception("Csrf failure in {}".format(func.__name__))
                 abort(400)
@@ -182,4 +182,4 @@ def try_except(func):
 
     return _try_except
 '''
-import home
+from . import home

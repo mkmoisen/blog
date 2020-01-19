@@ -17,18 +17,18 @@ def main():
 
     for loc in analyze_site_map():
         r = requests.get(loc)
-        print loc, r.url, r.status_code
+        print(loc, r.url, r.status_code)
         if loc != r.url or r.status_code != 200:
             bad.append((loc, r.url, r.status_code))
 
     if bad:
-        print "Failed:\n"
+        print("Failed:\n")
         for b in bad:
-            print b
+            print(b)
 
         return 1
 
-    print "Success"
+    print("Success")
     return 0
 
 if __name__ == '__main__':

@@ -118,10 +118,10 @@ class Test_DraftLogic(TestBase):
         with get_context_variables(app) as contexts:
             r = self.c.get('/admin/post/new/', follow_redirects=True)
             csrf = session['csrf_token']
-            print "hai i am csrf", csrf
+            print("hai i am csrf", csrf)
             context = next(contexts)
-            self.assertEquals(context['post_id'], '')
-            self.assertEquals(context['draft_id'], '')
+            self.assertEqual(context['post_id'], '')
+            self.assertEqual(context['draft_id'], '')
 
     def _assert_get_admin_post_new_variables(self, post_id, draft_id):
         with get_context_variables(app) as contexts:
@@ -133,11 +133,11 @@ class Test_DraftLogic(TestBase):
             r = self.c.get('/admin/post/{}/'.format(u), follow_redirects=True)
             self.csrf_token = session['csrf_token']
             context = next(contexts)
-            self.assertEquals(context['post_id'], post_id)
-            self.assertEquals(context['draft_id'], draft_id)
+            self.assertEqual(context['post_id'], post_id)
+            self.assertEqual(context['draft_id'], draft_id)
 
     def _ajax_save_draft(self, data):
-        print "session in ajax save draft is", session
+        print("session in ajax save draft is", session)
         http_ref = app.config['WEB_PROTOCOL'] + app.config['DOMAIN'] + "/"
         data['_csrf_token'] = self.csrf_token
         r = self.c.post('/api/save-draft/', data=json.dumps(data), content_type='application/json',
@@ -149,23 +149,23 @@ class Test_DraftLogic(TestBase):
 
     def _assert_saved_draft_brand_new(self, draft_id, **kwargs):
         post = db.session.query(Post).filter_by(id=draft_id).one()
-        for k, v in kwargs.iteritems():
-            self.assertEquals(getattr(post, k), v)
+        for k, v in kwargs.items():
+            self.assertEqual(getattr(post, k), v)
         draft = db.session.query(Draft).filter_by(draft_post_id=draft_id).one()
-        self.assertEquals(draft.original_post_id, None)
+        self.assertEqual(draft.original_post_id, None)
 
     def _assert_saved_draft_old(self, draft_id, post_id, **kwargs):
         post = db.session.query(Post).filter_by(id=draft_id).one()
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             # For old items, the name is changed to "test<uuid4>"
             # If we split on the name with the value (test), it will create an array of length 2, where 2nd item is uuid
             value = getattr(post, k)
             value = value.split(v)
-            self.assertEquals(len(value), 2)
+            self.assertEqual(len(value), 2)
             # This will raise an error if the uuid is wrong
             uuid.UUID(value[1], version=4)
         draft = db.session.query(Draft).filter_by(draft_post_id=draft_id).one()
-        self.assertEquals(draft.original_post_id, post_id)
+        self.assertEqual(draft.original_post_id, post_id)
 
 
 
@@ -182,14 +182,14 @@ class Test_DraftLogic(TestBase):
 
         # Get /admin/post/new first
         self._assert_get_admin_post_new_variables(post_id='', draft_id='')
-        print "session in tests is ", session
+        print("session in tests is ", session)
 
         # Save first draft
         draft_id = self._ajax_save_draft(self.data)
         self.data['draft_id'] = draft_id
         self._assert_saved_draft_brand_new(draft_id, title='test')
 
-        print "session before save draft again is ", session
+        print("session before save draft again is ", session)
 
 
         # Save draft again
@@ -215,8 +215,8 @@ class Test_DraftLogic(TestBase):
         self.assertRaises(NoResultFound, db.session.query(Draft).filter_by(draft_post_id=draft_id).one)
         # Post should retain draft_id as id
         post = db.session.query(Post).filter_by(id=draft_id).one()
-        self.assertEquals(post.title, 'testtesttest')
-        self.assertEquals(post.is_published, True)
+        self.assertEqual(post.title, 'testtesttest')
+        self.assertEqual(post.is_published, True)
 
     @admin_login
     def test_save_draft_without_crash(self):
@@ -254,8 +254,8 @@ class Test_DraftLogic(TestBase):
         # Post should NOT retain draft_id as id
         self.assertRaises(NoResultFound, db.session.query(Post).filter_by(id=draft_id).one)
         post = db.session.query(Post).one()
-        self.assertEquals(post.title, 'testtest')
-        self.assertEquals(post.is_published, True)
+        self.assertEqual(post.title, 'testtest')
+        self.assertEqual(post.is_published, True)
 
     @admin_login
     def test_save_draft_of_old_post_after_crash(self):
@@ -308,11 +308,11 @@ class Test_DraftLogic(TestBase):
         db.session.query(Draft).filter_by(draft_post_id=old_post.id).one()
         # New Post should retain draft_id as id
         post = db.session.query(Post).filter_by(id=draft_id).one()
-        self.assertEquals(post.title, 'testtesttest')
-        self.assertEquals(post.is_published, True)
+        self.assertEqual(post.title, 'testtesttest')
+        self.assertEqual(post.is_published, True)
         # old post should be unpublished
         post = db.session.query(Post).filter_by(id=old_post.id).one()
-        self.assertEquals(post.is_published, False)
+        self.assertEqual(post.is_published, False)
 
     @admin_login
     def test_save_draft_of_old_post_without_crash(self):
@@ -346,8 +346,8 @@ class Test_DraftLogic(TestBase):
         # Old post should be draft
         # old post should be unpublished
         post = db.session.query(Post).filter_by(id=old_post.id).one()
-        self.assertEquals(post.title, 'testtest')
-        self.assertEquals(post.is_published, True)
+        self.assertEqual(post.title, 'testtest')
+        self.assertEqual(post.is_published, True)
 
 
 class TestCanonicalUrls(TestBase):

@@ -30,7 +30,7 @@ class SqlAlchemySessionInterface(SessionInterface):
             except NoResultFound:
                 stored_session = None
             if stored_session:
-                print "stored session is ", stored_session
+                print("stored session is ", stored_session)
                 data = json.loads(stored_session.data)
                 if stored_session.expiration_date > datetime.utcnow():
                     return SqlAlchemySession(initial=data, sid=stored_session.sid)
