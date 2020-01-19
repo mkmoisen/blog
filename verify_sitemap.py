@@ -3,7 +3,8 @@ from blog import app
 import sys
 import requests
 import sys
-from BeautifulSoup import BeautifulStoneSoup as Soup
+from bs4 import BeautifulStoneSoup as Soup
+
 
 def analyze_site_map():
     r = requests.get('{}{}sitemap.xml'.format(app.config['WEB_PROTOCOL'], app.config['DOMAIN']))
@@ -11,6 +12,7 @@ def analyze_site_map():
     soup = Soup(r.content)
     locs = soup.findAll('loc')
     return [loc.string for loc in locs]
+
 
 def main():
     bad = []
@@ -30,6 +32,7 @@ def main():
 
     print("Success")
     return 0
+
 
 if __name__ == '__main__':
     try:

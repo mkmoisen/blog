@@ -24,17 +24,20 @@ def proc(command):
     stdout, stderr = p.communicate()
     return stdout, stderr, p.returncode
 
+
 def git_pull(branch):
     command = 'git pull origin {}'.format(branch)
     stdout, stderr, code = proc(command)
     if code != 0:
         raise ValueError(stderr)
 
+
 def pip_install():
     command = 'pip install -r requirements.txt'
     stdout, stderr, code = proc(command)
     if code != 0:
         raise ValueError(stderr)
+
 
 def stop_blog(environment):
     service = 'blog_stage'
@@ -45,6 +48,7 @@ def stop_blog(environment):
     if environment == 'prod' and code != 0:
         raise ValueError(stderr)
     return stdout, stderr, code
+
 
 def backup_db(environment):
     db = '/apps/stage/blog/blog/db.db'
@@ -57,14 +61,17 @@ def backup_db(environment):
     if code != 0:
         raise ValueError(stderr)
 
+
 def ddl():
     db.create_all()
+
 
 def nosetests():
     command = 'nosetests'
     stdout, stderr, code = proc(command)
     if code != 0:
         raise ValueError(stderr)
+
 
 def start_blog(environment):
     service = 'blog_stage'
@@ -75,11 +82,13 @@ def start_blog(environment):
     if code != 0:
         raise ValueError(stderr)
 
+
 def verify_sitemap():
     command = 'python verify_sitemap.py'
     stdout, stderr, code = proc(command)
     if code != 0:
         raise ValueError(stderr)
+
 
 def main():
     args = parser.parse_args()

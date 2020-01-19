@@ -71,7 +71,6 @@ class SqlAlchemySessionInterface(SessionInterface):
         self.db.session.add(stored_session)
         self.db.session.commit()
 
-
         response.set_cookie(app.session_cookie_name, session.sid, expires=self.get_expiration_time(app, session),
                             httponly=True, domain=domain)
 

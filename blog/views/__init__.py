@@ -4,14 +4,18 @@ from flask import jsonify, abort, render_template, request, session
 from sqlalchemy.orm.exc import NoResultFound
 from werkzeug.exceptions import NotFound
 import uuid
+from urllib.parse import urlparse
 
 date_format = '%Y-%m-%dT%H:%M:%S.%fZ'
+
 
 class ServerError(Exception):
     pass
 
+
 class UserError(Exception):
     pass
+
 
 def try_except(api=False):
     def real_decorator(func):
@@ -57,15 +61,18 @@ def try_except(api=False):
         return _try_except
     return real_decorator
 
+
 @app.errorhandler(404)
 def page_not_found(error):
     app.logger.debug("I AM 404 LOL")
     return render_template('404.html'), 404
 
+
 @app.errorhandler(500)
 def server_error(error):
     app.logger.debug("I AM 500 LOL")
     return render_template('500.html'), 500
+
 
 def check_admin_status():
     return 'is_admin' in session and session['is_admin']
@@ -115,10 +122,10 @@ def _check_csrf(request_type):
     return True
 
 
-from urllib.parse import urlparse
 def csrf(request_type='json'):
     if request_type not in ('json', 'form'):
         raise ServerError("csrf request_type must be either json or form, not {}".format(request_type))
+
     def real_csrf(func):
         @wraps(func)
         def _csrf(*args, **kwargs):
@@ -132,54 +139,14 @@ def csrf(request_type='json'):
         return _csrf
     return real_csrf
 
+
 def generate_csrf_token():
     if 'csrf_token' not in session:
         session['csrf_token'] = str(uuid.uuid4())
     return session['csrf_token']
 
+
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 
-
-
-
-
-
-
-
-'''
-def try_except(func):
-    @wraps(func)
-    def _try_except(*args, **kwargs):
-        try:
-            app.logger.debug("In {}, args={}, kwargs={}".format(func.func_name, args, kwargs))
-            return func(*args, **kwargs)
-
-        except BadRequest as ex:
-            app.logger.exception(ex)
-            return jsonify({'error': 'Invalid JSON request {}'.format(ex.message)}), 400
-
-        except UserError as ex:
-            app.logger.exception(ex.message)
-            db.session.rollback()
-            return jsonify({'error': ex.message}), 400
-
-        except ServerError as ex:
-            app.logger.exception(ex.message)
-            db.session.rollback()
-            return jsonify({'error': ex.message}), 500
-
-        except SQLAlchemyError as ex:
-            #This is a server error
-            app.logger.exception(ex.message)
-            db.session.rollback()
-            return jsonify({'error': ex.message}), 500
-
-        except Exception as ex:
-            app.logger.exception(ex.message)
-            db.session.rollback()
-            return jsonify({'error': ex.message}), 500
-
-    return _try_except
-'''
 from . import home

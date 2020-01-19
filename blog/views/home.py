@@ -7,7 +7,6 @@ from flask import jsonify, request, url_for, redirect, g, session, render_templa
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
-from werkzeug.exceptions import BadRequest
 from functools import wraps
 from . import try_except, UserError, ServerError, check_admin_status, csrf
 from blog.models import *
@@ -19,23 +18,16 @@ import validate_email
 from werkzeug.utils import secure_filename
 import os
 from sqlalchemy.sql import func
-from sqlalchemy.sql.expression import literal_column
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import requests
-is_brew_db_enabled = True
-try:
-    from blog.local_settings import BREW_DATABASE, BREW_HOST, BREW_PASSWORD, BREW_USERNAME
-except ImportError:
-    app.logger.warning("Local settings doesn't have brew database information")
-    is_brew_db_enabled = False
-import pymysql
-from collections import namedtuple
-import itertools
-import json
+import uuid
+import random
+from xml.etree import ElementTree
 from sqlalchemy import or_
 import base64
 from PIL import Image
 import io
+
 
 def login_required(f):
     @wraps(f)
@@ -47,9 +39,11 @@ def login_required(f):
 
     return _login_required
 
+
 def get_uncategorized_id():
     uncategorized = db.session.query(Category).filter_by(name='Uncategorized').one()
     return uncategorized.id
+
 
 @app.route('/blog/')
 @try_except()
@@ -64,17 +58,15 @@ def blog():
 
     return redirect(url_for('get_post_by_name', url_name=url_name), 301)
 
+
 @app.route('/blog/<first_cat>/<second_cat>/<url_name>/', methods=['GET'])
 @try_except()
 def wordpress_full_url(first_cat, second_cat, url_name):
     wordpress_url = first_cat + '/' + second_cat + '/' + url_name + '/'
-
-    #p = db.session.query(Post).filter_by(wordpress_url=wordpress_url).one()
-    #url_name = p.url_name
-
     wordpress = db.session.query(Wordpress).filter_by(type='url').filter_by(val=wordpress_url).one()
     url_name = wordpress.redirect
     return redirect(url_for('get_post_by_name', url_name=url_name), 301)
+
 
 @app.route('/blog/wp-content/uploads/<year>/<month>/<path>')
 @try_except()
@@ -86,7 +78,6 @@ def wordpress_images(year, month, path):
 
     return redirect(url_name, 301)
 
-# TODO WHAT ABOUT DATA: PICTURES?
 
 @app.route('/blog/<url_name>/', methods=['GET'])
 @try_except()
@@ -108,14 +99,6 @@ def home():
         .filter(Post.is_published == True) \
         .order_by(Post.creation_date.desc())  \
         .all()
-    """
-    posts = db.session.query(Post, Category) \
-        .outerjoin(CategoryPost, and_(Post.id == CategoryPost.post_id, Post.category_id == CategoryPost.category_id)) \
-        .outerjoin(Category) \
-        .filter(Post.is_published == True) \
-        .order_by(Post.creation_date.desc())\
-        .all()
-    """
 
     project_intro_posts = db.session.query(ProjectPost).filter_by(order_no=0)
     project_intro_post_ids = [p.post_id for p in project_intro_posts]
@@ -134,6 +117,7 @@ def home():
         for p, category in posts
     ]
     return render_template('home.html', posts=posts)
+
 
 @app.route('/admin/post/', methods=['GET'])
 @try_except()
@@ -159,36 +143,6 @@ def admin_post():
     return render_template('admin-post.html', posts=posts)
 
 
-'''
-def print_tree(tree, depth=0):
-    for child in tree:
-        print '    ' * depth + child['name']
-        print_tree(child['children'], depth + 1)
-
-
-def iter_tree(tree, depth=0):
-    for child in tree:
-        yield '    ' * depth + child['name']
-        for i in iter_tree(child['children'], depth + 1):
-            yield i
-
-def _append_tree(category, tree):
-    tree.append({'id': category.id, 'name': category.name, 'children': []})
-
-def add_node(category, tree):
-    if category.parent_id is None:
-        _append_tree(category, tree)
-        return 1
-    for child in tree:
-        if category.parent_id == child['id']:
-            _append_tree(category, child['children'])
-            return 1
-        if add_node(category, child['children']):
-            return 1
-    return 0
-'''
-
-
 def print_tree(tree, depth=0):
     for child in tree:
         print('    ' * depth + child['category'].name)
@@ -201,8 +155,10 @@ def iter_tree(tree, depth=0):
         for i in iter_tree(child['children'], depth + 1):
             yield i
 
+
 def _append_tree(category, tree, parent=None):
     tree.append({'parent': parent, 'category': category, 'children': []})
+
 
 def _add_node(category, tree, back=None):
     if back is None:
@@ -215,6 +171,7 @@ def _add_node(category, tree, back=None):
         if _add_node(category, child['children'], back):
             return 1
     return 0
+
 
 def add_node(category, tree, back=None):
     if back is None:
@@ -230,11 +187,6 @@ def add_node(category, tree, back=None):
         # TODO actually should I be relying on parent_id to be ordered correctly???
         raise ValueError("categories parent id not found for {}".format(category))
 
-def lol(back, category):
-    yield category
-    if back[category.id] is not None:
-        for i in lol(back, back[category.id]):
-            yield i
 
 def _find_ascendants(back, category):
     yield category
@@ -242,14 +194,12 @@ def _find_ascendants(back, category):
         for i in _find_ascendants(back, back[category.id]):
             yield i
 
+
 def find_ascendants(back, category):
     if category.parent_id is None:
         return
     for i in _find_ascendants(back, back[category.id]):
         yield i
-
-
-
 
 
 @app.route('/blog/category/', methods=['GET'])
@@ -298,8 +248,10 @@ def category():
 
     return render_template('category.html', categories=categories, title=title)
 
+
 def _get_project_category():
     return db.session.query(Category).filter_by(name="Projects").one()
+
 
 @app.route("/projects/", methods=['GET'])
 @try_except()
@@ -333,6 +285,7 @@ def get_projects():
 
     return render_template('category.html', categories=categories, title=title)
 
+
 @app.route('/projects/<url_name>/', methods=['GET'])
 @try_except()
 def get_project_post(url_name):
@@ -351,6 +304,7 @@ def get_project_post(url_name):
 
     # TODO why not post(post.id) ?
     return post(p.id)
+
 
 @app.route('/resume/', methods=['GET'])
 @try_except()
@@ -398,8 +352,6 @@ def search_posts():
 @app.route('/blog/category/<url_name>/', methods=['GET'])
 @try_except()
 def category_posts_by_name(url_name):
-
-
     category = db.session.query(Category).filter_by(url_name=url_name).one()
     category_id = category.id
     category_name = category.name
@@ -424,7 +376,6 @@ def category_posts_by_name(url_name):
             return '/projects/{}/'.format(post.url_name)
         return '/blog/{}/'.format(post.url_name)
 
-
     posts = [
         {
             'title': p.title,
@@ -437,6 +388,7 @@ def category_posts_by_name(url_name):
     return render_template('category-posts.html', posts=posts, title=category_name, category_name=category_name, category_id=category_id,
                            category_url_name=category_url_name, category_description=category_description)
 
+
 @app.route('/admin/', methods=['GET'])
 @try_except()
 def admin():
@@ -445,7 +397,8 @@ def admin():
 
     return render_template('admin.html')
 
-@app.route('/admin/create/', methods=['GET','POST'])
+
+@app.route('/admin/create/', methods=['GET', 'POST'])
 @try_except()
 def admin_create():
     if request.method == 'GET':
@@ -496,7 +449,6 @@ def admin_create():
     db.session.flush()
 
     # Create temporary Resume post
-    dt = datetime.utcnow()
     uncategorized_description = "Matthew Moisen's uncategorized blog posts"
     uncategorized = Category(name='Uncategorized', url_name='uncategorized',
                              description=uncategorized_description)
@@ -518,17 +470,16 @@ def admin_create():
     category_post = CategoryPost(category_id=uncategorized.id, post_id=post.id)
     db.session.add(category_post)
 
-    # Create Projects Category
-
-
     db.session.commit()
 
     return redirect(url_for('admin_login'))
+
 
 @app.route('/admin/logout/', methods=['GET'])
 def admin_logout():
     session.clear()
     return redirect(url_for('home'))
+
 
 @app.route('/admin/login/', methods=['GET', 'POST'])
 @try_except()
@@ -581,6 +532,7 @@ def admin_login():
 
     return redirect(url_for('admin'))
 
+
 def get_category_tree(back=None):
     if back is None:
         back = {}
@@ -589,6 +541,7 @@ def get_category_tree(back=None):
         add_node(category, tree, back)
 
     return tree
+
 
 def get_categories(back=None):
 
@@ -644,7 +597,7 @@ def make_project_category(category):
 
 
 @app.route('/admin/category/', methods=['GET', 'POST'])
-@app.route('/admin/category/<int:category_id>/', methods=['GET','POST'])
+@app.route('/admin/category/<int:category_id>/', methods=['GET', 'POST'])
 @try_except()
 @login_required
 def admin_category_create(category_id=None):
@@ -704,10 +657,8 @@ def admin_category_create(category_id=None):
         if description == '':
             description = "Matthew Moisen's commentary on {}".format(category.name)
 
-
         category.url_name = url_name
         category.description = description
-
 
         db.session.add(category)
         resubmit = False
@@ -715,7 +666,7 @@ def admin_category_create(category_id=None):
         try:
             db.session.flush()
         except IntegrityError as ex:
-            flash(ex.message, 'error')
+            flash(str(ex), 'error')
             resubmit = True
 
         # Check if category is a project and handle the category/project logic
@@ -726,13 +677,12 @@ def admin_category_create(category_id=None):
                 print("parent id is project category!")
                 make_project_category(category)
 
-
         app.logger.debug("ABOUT TO COMMIT")
         if not resubmit:
             try:
                 db.session.commit()
             except IntegrityError as ex:
-                flash(ex.message, 'error')
+                flash(str(ex), 'error')
                 resubmit = True
 
         if resubmit:
@@ -754,8 +704,6 @@ def admin_category_create(category_id=None):
             session['category_parent_id'] = parent_id
 
         return redirect(url_for('admin_category_create'))
-
-
 
 
 @app.route('/api/upload-image-png/', methods=['POST'])
@@ -788,6 +736,7 @@ def upload_image2():
 
     return jsonify({"markdown": markdown})
 
+
 @app.route('/api/upload-image/', methods=['POST'])
 @try_except(api=True)
 @login_required
@@ -797,7 +746,6 @@ def upload_image():
         raise UserError("File is empty")
 
     file = request.files['file']
-
 
     if file.filename is None or file.filename == '':
         raise UserError("Filename is none or empty")
@@ -812,12 +760,11 @@ def upload_image():
     try:
         file.save(file_path)
     except IOError as ex:
-        raise ServerError("Could not save file: {}".format(ex.message))
+        raise ServerError("Could not save file: {}".format(ex))
 
     markdown = '\n\n' + '![{file_name}](/static/images/{file_name}) \n'.format(file_name=file_name)
 
     return jsonify({"markdown": markdown}), 200
-
 
 
 def draft_logic(post_id, draft_id, submit):
@@ -892,6 +839,7 @@ def draft_logic(post_id, draft_id, submit):
 
     return post
 
+
 @app.route('/admin/post/new/', methods=['GET', 'POST'])
 @app.route('/admin/post/<int:post_id>/', methods=['GET', 'POST'])
 @try_except()
@@ -961,8 +909,6 @@ def admin_post_create(post_id=None):
                     for d in drafts
                 ]
 
-
-
             other_categories = db.session.query(CategoryPost).filter_by(post_id=post_id).all()
             other_category_ids = [other_category.category_id for other_category in other_categories]
         else:
@@ -1020,8 +966,6 @@ def admin_post_create(post_id=None):
 
         post = draft_logic(post_id, draft_id, submit)
 
-
-
         post.user_id = session['user_id']
         post.is_commenting_disabled = is_commenting_disabled
 
@@ -1073,8 +1017,8 @@ def admin_post_create(post_id=None):
 
         except SQLAlchemyError as ex:
             db.session.rollback()
-            app.logger.exception("Error saving post {}".format(ex.message))
-            admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
+            app.logger.exception("Error saving post {}".format(ex))
+            admin_post_create_error(str(ex), title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
@@ -1148,19 +1092,19 @@ def admin_post_create(post_id=None):
             db.session.commit()
         except SQLAlchemyError as ex:
             db.session.rollback()
-            app.logger.exception("Error saving Post {}".format(ex.message))
-            admin_post_create_error(ex.message, title, content, main_category_id, other_category_ids,
+            app.logger.exception("Error saving Post {}".format(ex))
+            admin_post_create_error(str(ex), title, content, main_category_id, other_category_ids,
                                     post_id, is_commenting_disabled, draft_id)
             return redirect(url_for('admin_post_create'))
 
-
         ping_google_sitemap()
-
 
         return redirect(url_for('post', post_id=post.id))
 
+
 @app.route('/admin/post/<int:post_id>/publish/', methods=['GET'])
 @try_except()
+@login_required
 def mark_post_as_published(post_id):
     last_url = request.args.get('last_url', 'post')
 
@@ -1174,8 +1118,10 @@ def mark_post_as_published(post_id):
 
     return redirect(url_for(last_url, post_id=post_id))
 
+
 @app.route('/admin/post/<int:post_id>/draft/', methods=['GET'])
 @try_except()
+@login_required
 def mark_post_as_draft(post_id):
     post = db.session.query(Post).filter_by(id=post_id).one()
 
@@ -1191,6 +1137,18 @@ def mark_post_as_draft(post_id):
     return redirect(url_for(last_url, post_id=post_id))
 
 
+@app.route('/admin/post/<int:post_id>/delete/', methods=['GET'])
+@try_except
+@login_required
+def mark_post_as_deleted(post_id):
+    post = db.session.query(Post).filter_by(id=post_id).one()
+    db.session.delete(post)
+    db.session.commit()
+
+    ping_google_sitemap()
+
+    return redirect(url_for('/blog/'))
+
 
 def text_to_number(val):
     try:
@@ -1198,13 +1156,12 @@ def text_to_number(val):
     except ValueError:
         return None
 
-import uuid
-
 
 def uuid_if_empty(val):
     if val == '':
         return str(uuid.uuid4())
     return val
+
 
 @app.route('/api/save-draft/', methods=['POST'])
 @try_except(api=True)
@@ -1290,76 +1247,16 @@ def save_draft():
 
     db.session.commit()
 
-    '''
-
-    if draft_id is None:
-        user_id = session['user_id']
-        post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
-                    category_id=main_category_id, user_id=user_id)
-        db.session.add(post)
-        try:
-            db.session.flush()
-        except IntegrityError:
-            u = str(uuid.uuid4())
-            title += u
-            url_name += u
-            post.title = title
-            post.url_name = url_name
-            db.session.flush()
-        draft = Draft(original_post_id=post_id, draft_post_id=post.id)
-        db.session.add(draft)
-    else:
-        post = db.session.query(Post).filter_by(id=draft_id).one()
-        post.content = content
-        post.description = description
-        post.main_category_id = main_category_id
-        post.title = title
-        post.url_name = url_name
-        db.session.add(post)
-
-
-    db.session.commit()
-    '''
-    """
-    if draft_id is None:
-
-        # Draft id is None under two condition
-        # This is the first time the save is happening
-        if post_id is not None:
-            # TODO I could first check to see if title is unique and save it right
-            pass
-        user_id = session['user_id']
-        post = Post(title=title, description=description, url_name=url_name, content=content, is_published=False,
-                    category_id=main_category_id, user_id=user_id)
-        db.session.add(post)
-        db.session.flush()
-        if post_id is not None:
-            # We only make drafts on
-            draft = Draft(original_post_id=post_id, draft_post_id=draft_id)
-            db.session.add(draft)
-
-    else:
-        # This is the second to N time the save is happening
-        post = db.session.query(Post).filter_by(id=draft_id).one()
-        post.content = content
-        #post.title = title
-        post.description = description
-        #post.url_name = url_name
-        post.main_category_id = main_category_id
-        db.session.add(post)
-    """
-
     draft_id = post.id
 
     db.session.commit()
-
 
     ret = {
         'draft_id': draft_id,
     }
 
-
     return jsonify(ret), 200
+
 
 @app.route('/api/preview-post/', methods=['POST'])
 @try_except(api=True)
@@ -1370,7 +1267,6 @@ def preview_post():
     content = markdown.markdown(data['content'])
 
     return jsonify({"content": content}), 200
-
 
 
 def get_project_table_of_contents(post):
@@ -1409,7 +1305,6 @@ def post(post_id):
             abort(404)
 
     category_id = post.category_id
-
 
     title = post.title
     # markdown should be applied when comment is created
@@ -1486,8 +1381,6 @@ def check_for_urls(text):
 @app.route('/blog/<url_name>/', methods=['POST'])
 @try_except()
 def post_comment(url_name):
-
-
     post = db.session.query(Post).filter_by(url_name=url_name).one()
     post_id = post.id
 
@@ -1495,7 +1388,6 @@ def post_comment(url_name):
     email = request.form['comment_email']
     content = request.form['comment_content']
     input_spam_check = request.form['spam_check']
-
 
     resubmit = spam_check(input_spam_check)
 
@@ -1536,7 +1428,6 @@ def post_comment(url_name):
 
     flash("Comment has been submitted to the approval queue successfully", 'success')
 
-
     return redirect(url_for('post', post_id=post_id))
 
 
@@ -1553,6 +1444,7 @@ def comment_json(q):
         for c, p in q
     ]
     return comments
+
 
 @app.route('/admin/comment/<int:comment_id>/', methods=['GET', 'POST'])
 @login_required
@@ -1593,9 +1485,6 @@ def admin_comment(comment_id):
     return redirect(url_for('admin_comment_queue'))
 
 
-
-
-
 @app.route('/admin/comment/queue/', methods=['GET'])
 @login_required
 @try_except()
@@ -1611,6 +1500,7 @@ def admin_comment_queue():
     return render_template('admin-comment-queue.html', queued_comments=queued_comments, approved_comments=approved_comments,
                            queued_comments_count=queued_comments_count, approved_comments_count=approved_comments_count)
 
+
 @app.route('/admin/comment/<int:comment_id>/approve/')
 @try_except()
 @login_required
@@ -1624,6 +1514,7 @@ def admin_comment_approve(comment_id):
 
     return redirect(url_for('admin_comment_queue'))
 
+
 @app.route('/admin/comment/<int:comment_id>/delete/')
 @try_except()
 @login_required
@@ -1633,6 +1524,7 @@ def admin_comment_delete(comment_id):
     db.session.commit()
 
     return redirect(url_for('admin_comment_queue'))
+
 
 @app.route('/admin/log/', methods=['GET'])
 @try_except()
@@ -1658,6 +1550,7 @@ def admin_log():
 
     return render_template('admin-log.html', logs=logs)
 
+
 number_words = {
     1: 'one',
     2: 'two',
@@ -1670,8 +1563,10 @@ number_words = {
     9: 'nine',
     10: 'ten'
 }
+
 operators = ['+', '-', '*']
-import random
+
+
 def math_spam():
     number = list(number_words.keys())[random.randrange(1, len(number_words) + 1) - 1]
     number_to_word = list(number_words.keys())[random.randrange(1, len(number_words) + 1) - 1]
@@ -1739,17 +1634,18 @@ def ping_google_sitemap():
     try:
         r = requests.get(url)
     except requests.RequestException as ex:
-        app.logger.exception("Couldn't ping google about site map: {}, url used was {}".format(ex.message, url))
+        app.logger.exception("Couldn't ping google about site map: {}, url used was {}".format(ex, url))
     else:
         if r.status_code != 200:
             app.logger.error("Failed to ping google sitemap:\n{}\n\nurl was {}".format(r.text, url))
+
 
 def make_url(url, last_modified_time, change_frequency='weekly', priority='0.5'):
     return site_map_url_template.format(
         url=url, last_modified_time=last_modified_time, change_frequency=change_frequency, priority=priority
     )
 
-from xml.etree import ElementTree
+
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():
     template = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -1776,7 +1672,7 @@ def sitemap():
         try:
             max = q.one()[0]
         except SQLAlchemyError as ex:
-            app.logger.exception("Failed to create sitemap url for {}! {}".format(name, ex.message))
+            app.logger.exception("Failed to create sitemap url for {}! {}".format(name, ex))
         else:
             if max:
                 max = str(max.strftime(DATE_FORMAT))
@@ -1819,144 +1715,4 @@ def sitemap():
         # TODO Should probably email myself
 
     return template.format(urls=''.join(urls))
-
-
-
-def brew_query(sql):
-    if not is_brew_db_enabled:
-        raise ServerError("Brew database hasn't been set up yet")
-    connection = pymysql.connect(host=BREW_HOST, user=BREW_USERNAME, password=BREW_PASSWORD, db=BREW_DATABASE)
-    cursor = connection.cursor()
-    cursor.execute(sql)
-    results = cursor.fetchall()
-    cursor.close()
-    connection.close()
-    return results
-
-fermentor_query = '''
-SELECT f.name, f.start_temp, f.temp_differential, t.wort_temp, t.dt
-FROM fermentation_fermentor f JOIN fermentation_temperature t ON f.id = t.fermentor_id
-WHERE 1=1
-    AND f. active = 1
-    AND t.dt > DATE_SUB(now(), INTERVAL {minutes} MINUTE)
-ORDER BY t.dt
-'''
-
-name_query = '''
-SELECT distinct f.name
-FROM fermentation_fermentor f JOIN fermentation_temperature t ON f.id = t.fermentor_id
-WHERE 1=1
-    AND f. active = 1
-    AND t.dt > DATE_SUB(now(), INTERVAL {minutes} MINUTE)
-ORDER BY f.name
-'''
-
-Temperature = namedtuple('Temperautre', ('name', 'start_temp', 'temp_differential', 'wort_temp', 'dt'))
-
-
-def average_temps(dt, temps):
-    """
-    Since there may be more temps in one minute
-    then the number of columns in the chart, make sure
-    to average them out
-    """
-    grouped = {}
-    for key, group in itertools.groupby(temps, key=lambda x: x.name):
-        grouped[key] = [g for g in group]
-
-    avg_temps = []
-    for key, group in grouped.items():
-        count = 0.0
-        sum = 0.0
-        for temp in group:
-            try:
-                sum += temp.wort_temp
-            except TypeError as ex:
-                pass
-                # Not sure why, but some of the wort temps are null?
-                # Must a be bug in brew app
-            else:
-                count += 1
-
-        if count != 0:
-            avg_temps.append(Temperature(temp.name, temp.start_temp, temp.temp_differential, sum / count, dt))
-
-    return avg_temps
-
-def make_google_chart_row(dt, temps, real, name_map):
-    """
-    Creates a denormalized google chart row from
-    normalized temperature data
-    """
-    # Initialize an empty denormalized row with same length as the number of beers we are brewing
-    a = [dt] + [None] * len(name_map)
-
-    # Use the name map to index the correct beer into the correct column
-    for temp in temps:
-        a[name_map[temp.name]] = temp.wort_temp
-
-    real.append(a)
-
-
-@app.route('/brew/', methods=['GET'])
-@try_except()
-def brew():
-    try:
-        minutes = request.args.get('minutes', 60 * 24)
-        try:
-            minutes = int(minutes)
-        except ValueError:
-            minutes = 60 * 24
-
-        try:
-            print(name_query.format(minutes=minutes))
-            name_rows = brew_query(name_query.format(minutes=minutes))
-        except Exception as ex:
-            db.session.rollback()
-            app.logger.exception("Brewery database has an exception: {}".format(ex))
-            flash("The temperature database is down", "error")
-            return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
-
-        names = [row[0] for row in name_rows]
-
-        # The name map will be used to assist in the denormalization process by properly indexing
-        # the correct beer to the correct column
-        name_map = {}
-        count = 1
-        for name in names:
-            name_map[name] = count
-            count += 1
-
-        try:
-            print(fermentor_query.format(minutes=minutes))
-            temperature_rows = brew_query(fermentor_query.format(minutes=minutes))
-        except Exception as ex:
-            db.session.rollback()
-            app.logger.exception("Brewery database has an exception: {}".format(ex))
-            flash("The temperature database is down", "error")
-            return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
-
-        temperatures = [Temperature(*row) for row in temperature_rows]
-
-        # Group each temperature, truncated to the minute
-        grouped = {}
-        for key, group in itertools.groupby(temperatures, lambda x: x.dt.strftime('%Y-%m-%dT%H:%M')):
-            g = [t for t in group]
-            grouped[key] = sorted(g, key=lambda t: t.name)
-
-        # Denormalize and average the temperature
-        data = []
-        for dt, temps in grouped.items():
-            if len(temps) <= len(names):
-                avg_temps = average_temps(dt, temps)
-                make_google_chart_row(dt, avg_temps, data, name_map)
-
-        return render_template('brew.html', data=json.dumps(data), names=json.dumps(names))
-
-    except Exception as ex:
-        db.session.rollback()
-        flash("I'm sorry there was an error", "error")
-        app.logger.exception("Failed to get brewing results: {}".format(ex))
-        return render_template('brew.html', data=json.dumps([]), names=json.dumps([]))
-
 

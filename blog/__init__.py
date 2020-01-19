@@ -17,7 +17,6 @@ if not app.config['DOMAIN'].endswith('/'):
     app.config['DOMAIN'] += '/'
 
 
-
 if app.config['DATABASE'] == 'sqlite':
     # Sqlite doesn't enforce Foreign Keys by default. This enables it
     @event.listens_for(Engine, "connect")
@@ -31,11 +30,8 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'images')
 db = SQLAlchemy(app)
 
 
-
-
 from blog.views import *
 from blog.models import Log
-
 from blog.sqlalchemy_session import SqlAlchemySessionInterface
 app.session_interface = SqlAlchemySessionInterface(db)
 

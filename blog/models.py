@@ -78,6 +78,7 @@ class Post(BaseModel):
                       db.CheckConstraint("content <> ''"),
                       {'sqlite_autoincrement': True})
 
+
 class Draft(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     # Original post id is null when we are createing a new post
@@ -100,7 +101,6 @@ class Wordpress(BaseModel):
                       )
 
 
-
 class CategoryPost(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -110,6 +110,7 @@ class CategoryPost(BaseModel):
         (db.UniqueConstraint('category_id', 'post_id')),
         {'sqlite_autoincrement': True},
     )
+
 
 class Comment(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -123,6 +124,7 @@ class Comment(BaseModel):
 
     __table_args__ = (db.CheckConstraint("content <> ''"), db.CheckConstraint("name <> ''"), {'sqlite_autoincrement': True})
 
+
 class User(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String, nullable=False)
@@ -130,6 +132,7 @@ class User(BaseModel):
     email = db.Column(db.String, nullable=False)
     password = db.Column(db.String, nullable=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
+
 
 class Project(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -140,6 +143,7 @@ class Project(BaseModel):
     __table_args__ = (
         {'sqlite_autoincrement': True},
     )
+
 
 class ProjectPost(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
@@ -154,19 +158,3 @@ class ProjectPost(BaseModel):
         db.UniqueConstraint('project_id', 'order_no'),
         {'sqlite_autoincrement': True},
     )
-
-
-'''
-class ProjectPostOrder(BaseModel):
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), ondelete='CASCADE'), nullable=False)
-    category_post_id = db.Column(db.Integer, db.ForeignKey('category_post.id', ondelete='CASCADE'), nullable=False)
-    # an order_no of 0 indicates the introduction post to the project and the /projects/<name>/ url will resolve there
-    order_no = db.Column(db.Integer, default=1, nullable=False)
-
-    __table_args__ = (
-        {'sqlite_autoincrement': True},
-        # Should I enforce this at the DB layer or at the application layer ?
-        (db.UniqueContraint('category_post_id', 'order_no')),
-    )
-'''

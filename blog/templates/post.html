@@ -46,12 +46,13 @@
         <h1>{{title}}</h1>
     </header>
     {% if is_admin %}
-    <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
+        <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
         {% if is_published %}
         <a href="/admin/post/{{post_id}}/draft/"><button type="submit">Mark as Draft</button></a>
         {% else %}
         <a href="/admin/post/{{post_id}}/publish/"><button type="submit">Mark as Published</button></a>
         {% endif %}
+        <a href="/admin/post/{{post_id}}/delete/"><button type="submit">Delete</button></a>
     {% endif %}
 
     {{ print_table_of_contents() }}
@@ -61,12 +62,13 @@
     {{ print_table_of_contents() }}
 
     {% if is_admin %}
-    <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
+        <a href="/admin/post/{{post_id}}/"><button type="submit">Edit Post</button></a>
         {% if is_published %}
         <a href="/admin/post/{{post_id}}/draft/"><button type="submit">Mark as Draft</button></a>
         {% else %}
         <a href="/admin/post/{{post_id}}/publish/"><button type="submit">Mark as Published</button></a>
         {% endif %}
+        <a href="/admin/post/{{post_id}}/delete/"><button type="submit">Delete</button></a>
     {% endif %}
 
     {% if not is_commenting_disabled %}

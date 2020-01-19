@@ -5,7 +5,7 @@ from blog.models import User, Post, Comment, Wordpress, CategoryPost
 from blog import db, app
 from blog.views.home import get_uncategorized_id
 from collections import defaultdict, namedtuple
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 import os
 import requests
 from datetime import datetime
@@ -72,7 +72,7 @@ for result in post_results:
     try:
         r = requests.get(wp_post.guid)
     except requests.RequestException as ex:
-        print("EXCEPTION ", ex.message)
+        print("EXCEPTION ", ex)
         print("guid was ", wp_post.guid)
         raise
 
