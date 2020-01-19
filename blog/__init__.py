@@ -41,15 +41,13 @@ class SQLAlchemyHandler(logging.Handler):
         trace = None
         exc = record.__dict__['exc_info']
         if exc:
-            trace = traceback.format_exc(exc)
-
+            trace = traceback.format_exc()
         path = request.path
         method = request.method
         ip = request.remote_addr
         is_admin = False
         if session and session.get('is_admin', False):
             is_admin = True
-
         log = Log(logger=record.__dict__['name'],
                   level=record.__dict__['levelname'],
                   trace=trace,
@@ -61,6 +59,7 @@ class SQLAlchemyHandler(logging.Handler):
         )
         db.session.add(log)
         db.session.commit()
+
 
 db_handler = SQLAlchemyHandler()
 db_handler.setLevel(logging.WARN)

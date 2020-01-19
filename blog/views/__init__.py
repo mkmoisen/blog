@@ -31,13 +31,13 @@ def try_except(api=False):
                 return jsonify({"error": str(ex)}), 400
             except UserError as ex:
                 db.session.rollback()
-                app.logger.exception("UserError in {} for path {}: {}".format(func.__name__, ex.message, request.path))
+                app.logger.exception("UserError in {} for path {}: {}".format(func.__name__, ex, request.path))
                 if not api:
                     abort(400)
                 return jsonify({"error": str(ex)}), 400
             except ServerError as ex:
                 db.session.rollback()
-                app.logger.exception("ServerError in {} for path {}: {}".format(func.__name__, ex.message, request.path))
+                app.logger.exception("ServerError in {} for path {}: {}".format(func.__name__, ex, request.path))
                 if not api:
                     abort(400)
                 return jsonify({"error": str(ex)}), 500
@@ -53,7 +53,7 @@ def try_except(api=False):
                 return jsonify({"error": str(ex)}), 400
             except Exception as ex:
                 db.session.rollback()
-                app.logger.exception("Exception in {} for path {}: {}".format(func.__name__, ex.message, request.path))
+                app.logger.exception("Exception in {} for path {}: {}".format(func.__name__, ex, request.path))
                 if not api:
                     abort(500)
                 return jsonify({"error": str(ex)}), 500

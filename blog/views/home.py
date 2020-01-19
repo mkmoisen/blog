@@ -238,10 +238,17 @@ def category():
             'category_id': category.id,
             'url_name': category.url_name,
             'count': category.count,
-            'is_project': True if category.id in project_category_ids else False
+            'is_project': True if category.id in project_category_ids else False,
         }
         for depth, category in iter_tree(tree)
     ]
+
+    # Move uncategorized which has a low id to the back so it's not so prominent in the UI
+    uncategorized_id = get_uncategorized_id()
+    uncategorized_id = next((i for i, cat in enumerate(categories) if cat['category_id'] == uncategorized_id), None)
+    if uncategorized_id is not None:
+        uncategorized = categories.pop(uncategorized_id)
+        categories.append(uncategorized)
 
     app.logger.debug("categories is")
     app.logger.debug(categories)
@@ -1138,7 +1145,7 @@ def mark_post_as_draft(post_id):
 
 
 @app.route('/admin/post/<int:post_id>/delete/', methods=['GET'])
-@try_except
+@try_except()
 @login_required
 def mark_post_as_deleted(post_id):
     post = db.session.query(Post).filter_by(id=post_id).one()
@@ -1147,7 +1154,7 @@ def mark_post_as_deleted(post_id):
 
     ping_google_sitemap()
 
-    return redirect(url_for('/blog/'))
+    return redirect(url_for('home'))
 
 
 def text_to_number(val):
