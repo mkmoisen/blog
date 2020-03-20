@@ -25,7 +25,12 @@ class ProductionConfig(Config):
 
 server_config = Config
 
+
+print("server_config is %s" % server_config.__name__)
+
 try:
     from blog.local_settings import *
 except ImportError:
     pass
+
+print("server_config is %s" % server_config.__name__)
