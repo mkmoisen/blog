@@ -91,14 +91,14 @@ def inject_global_vars():
 def _check_referrer():
     is_success = True
     if not request.referrer:
-        app.logger("not request.referrer")
+        app.logger.error("not request.referrer")
         is_success = False
 
     if is_success:
         refferer_uri = urlparse(request.referrer)
         good_uri = urlparse(app.config['WEB_PROTOCOL'] + app.config['DOMAIN'])
-        app.logger("refferer_uri = %s" % refferer_uri)
-        app.logger("good_uri = %s" % good_uri)
+        app.logger.error("refferer_uri = %s" % str(refferer_uri))
+        app.logger.error("good_uri = %s" % str(good_uri))
 
         if refferer_uri.scheme != good_uri.scheme:
             is_success = False
