@@ -718,7 +718,6 @@ def admin_category_create(category_id=None):
 @login_required
 @csrf(request_type='json')
 def upload_image2():
-    print(request.json)
     data = request.json['data']
     file_name = request.json['file_name']
 

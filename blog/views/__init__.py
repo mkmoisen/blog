@@ -97,8 +97,6 @@ def _check_referrer():
     if is_success:
         refferer_uri = urlparse(request.referrer)
         good_uri = urlparse(app.config['WEB_PROTOCOL'] + app.config['DOMAIN'])
-        app.logger.error("refferer_uri = %s" % str(refferer_uri))
-        app.logger.error("good_uri = %s" % str(good_uri))
 
         if refferer_uri.scheme != good_uri.scheme:
             is_success = False
