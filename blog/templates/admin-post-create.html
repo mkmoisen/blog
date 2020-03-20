@@ -29,7 +29,7 @@
 <script>
 $(document).ready(function(){
 
-        var csrf_token = "{{ csrf_token() }}"
+        var csrf_token = "{{ csrf_token() }}";
 
         $('#image-messages').hide();
 
@@ -79,6 +79,7 @@ $(document).ready(function(){
             console.log(data.blob);
 
             var content = {'data': data.dataURL};
+            content['_csrf_token'] = "{{csrf_token()}}";
 
             var file_name = prompt("Enter a unique file name", "matthew_moisen_foo.jpg");
             content['file_name'] = file_name;

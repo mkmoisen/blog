@@ -733,7 +733,7 @@ def upload_image2():
 
     image = Image.open(io.BytesIO(base64.b64decode(data)))
 
-    image.save(file_path, 'JPEG')
+    image.save(file_path, 'PNG')
 
     markdown = '\n\n' + '![{file_name}](/static/images/{file_name}) \n'.format(file_name=file_name)
 
